@@ -1,1 +1,1 @@
-# minato-duel
+# minatoku-duel
