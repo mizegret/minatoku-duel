@@ -1,28 +1,26 @@
 {
-  "humans": [
-    { "id": "human-001", "name": "南青山 みなみ" },
-    { "id": "human-002", "name": "西麻布 りな" },
-    { "id": "human-003", "name": "麻布十番 あやの" },
-    { "id": "human-004", "name": "六本木 みさき" },
-    { "id": "human-005", "name": "赤坂 ゆり" }
-  ],
-  "decorations": [
-    { "id": "deco-001", "name": "ヴィトンバッグ" },
-    { "id": "deco-002", "name": "ドンペリピンク" },
-    { "id": "deco-003", "name": "ロエベトート" },
-    { "id": "deco-004", "name": "シャネルクラッチ" },
-    { "id": "deco-005", "name": "エルメスバーキン" },
-    { "id": "deco-006", "name": "ティファニーネックレス" },
-    { "id": "deco-007", "name": "グッチパンプス" },
-    { "id": "deco-008", "name": "カルティエブレス" },
-    { "id": "deco-009", "name": "プラダサングラス" },
-    { "id": "deco-010", "name": "ボッテガカードケース" }
-  ],
-  "actions": [
-    { "id": "act-001", "name": "インスタ自慢" },
-    { "id": "act-002", "name": "ストーリーズ連投" },
-    { "id": "act-003", "name": "トイレで陰口" },
-    { "id": "act-004", "name": "VIP席確保" },
-    { "id": "act-005", "name": "タクシー直帰" }
+  "cards": [
+    { "id": "human-001", "type": "human", "name": "南青山 みなみ" },
+    { "id": "human-002", "type": "human", "name": "西麻布 りな" },
+    { "id": "human-003", "type": "human", "name": "麻布十番 あやの" },
+    { "id": "human-004", "type": "human", "name": "六本木 みさき" },
+    { "id": "human-005", "type": "human", "name": "赤坂 ゆり" },
+
+    { "id": "deco-001", "type": "decoration", "name": "ヴィトンバッグ" },
+    { "id": "deco-002", "type": "decoration", "name": "ドンペリピンク" },
+    { "id": "deco-003", "type": "decoration", "name": "ロエベトート" },
+    { "id": "deco-004", "type": "decoration", "name": "シャネルクラッチ" },
+    { "id": "deco-005", "type": "decoration", "name": "エルメスバーキン" },
+    { "id": "deco-006", "type": "decoration", "name": "ティファニーネックレス" },
+    { "id": "deco-007", "type": "decoration", "name": "グッチパンプス" },
+    { "id": "deco-008", "type": "decoration", "name": "カルティエブレス" },
+    { "id": "deco-009", "type": "decoration", "name": "プラダサングラス" },
+    { "id": "deco-010", "type": "decoration", "name": "ボッテガカードケース" },
+
+    { "id": "act-001", "type": "action", "name": "インスタ自慢" },
+    { "id": "act-002", "type": "action", "name": "ストーリーズ連投" },
+    { "id": "act-003", "type": "action", "name": "トイレで陰口" },
+    { "id": "act-004", "type": "action", "name": "VIP席確保" },
+    { "id": "act-005", "type": "action", "name": "タクシー直帰" }
   ]
 }

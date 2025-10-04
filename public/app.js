@@ -87,7 +87,7 @@ const state = {
   // move 実装向け（最小）
   members: [], // 参加クライアントIDの簡易一覧
   hostGame: null, // Host のみ保持する権威側のスコア・ターン
-  cards: null,
+  cardsByType: null,
 };
 
 function generateRoomId() {
@@ -126,22 +126,31 @@ async function loadEnvironment() {
 async function loadCards() {
   try {
     const data = await fetchJson('/cards.json');
-    state.cards = {
-      humans: Array.isArray(data?.humans) ? data.humans : [],
-      decorations: Array.isArray(data?.decorations) ? data.decorations : [],
-      actions: Array.isArray(data?.actions) ? data.actions : [],
-    };
-    console.info('[cards] loaded', {
-      humans: state.cards.humans.length,
-      decorations: state.cards.decorations.length,
-      actions: state.cards.actions.length,
-    });
+    let humans = [];
+    let decorations = [];
+    let actions = [];
+    if (Array.isArray(data?.cards)) {
+      for (const c of data.cards) {
+        if (!c || typeof c !== 'object') continue;
+        const item = { id: String(c.id ?? ''), name: String(c.name ?? ''), type: String(c.type ?? '') };
+        if (item.type === 'human') humans.push(item);
+        else if (item.type === 'decoration' || item.type === 'decorations') decorations.push({ ...item, type: 'decoration' });
+        else if (item.type === 'action' || item.type === 'actions') actions.push({ ...item, type: 'action' });
+      }
+    } else {
+      // 旧スキーマ互換
+      humans = Array.isArray(data?.humans) ? data.humans.map((x) => ({ ...x, type: 'human' })) : [];
+      decorations = Array.isArray(data?.decorations) ? data.decorations.map((x) => ({ ...x, type: 'decoration' })) : [];
+      actions = Array.isArray(data?.actions) ? data.actions.map((x) => ({ ...x, type: 'action' })) : [];
+    }
+    state.cardsByType = { humans, decorations, actions };
+    console.info('[cards] loaded', { humans: humans.length, decorations: decorations.length, actions: actions.length });
   } catch (e) {
     console.warn('[cards] failed to load, using defaults', e);
-    state.cards = {
-      humans: [{ id: 'human-default', name: '港区女子（仮）' }],
-      decorations: [{ id: 'deco-default', name: 'シャンパン（仮）' }],
-      actions: [{ id: 'act-default', name: 'アクション（仮）' }],
+    state.cardsByType = {
+      humans: [{ id: 'human-default', name: '港区女子（仮）', type: 'human' }],
+      decorations: [{ id: 'deco-default', name: 'シャンパン（仮）', type: 'decoration' }],
+      actions: [{ id: 'act-default', name: 'アクション（仮）', type: 'action' }],
     };
   }
 }
@@ -884,13 +893,36 @@ function getMembers() {
 // --- minimal card helpers (Host側で使用) ---
 function pickCard(type) {
   const empty = { id: `${type}-none`, name: 'カード' };
-  const col = state.cards?.[type];
+  const col = state.cardsByType?.[type];
   if (!Array.isArray(col) || col.length === 0) return empty;
   if (!state.hostGame) return col[0];
   if (!state.hostGame._seq) state.hostGame._seq = { humans: 0, decorations: 0, actions: 0 };
   const idx = state.hostGame._seq[type] % col.length;
   state.hostGame._seq[type] = state.hostGame._seq[type] + 1;
   return col[idx];
+}
+
+function randInt(max) {
+  if (max <= 0) return 0;
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const buf = new Uint32Array(1);
+    crypto.getRandomValues(buf);
+    return buf[0] % max;
+  }
+  return Math.floor(Math.random() * max);
+}
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i -= 1) {
+    const j = randInt(i + 1);
+    if (j !== i) {
+      const t = a[i];
+      a[i] = a[j];
+      a[j] = t;
+    }
+  }
+  return a;
 }
 
 function navigateToRoom(roomId) {
@@ -985,6 +1017,7 @@ function ensureStarted() {
 
   function buildDeck() {
     const deck = [];
+    // 指定枚数ぶんタイプ別に詰める（この時点では順序固定）
     for (let i = 0; i < 5; i += 1) {
       const c = pickCard('humans');
       deck.push({ id: c.id, name: c.name, type: 'human' });
@@ -997,7 +1030,8 @@ function ensureStarted() {
       const c = pickCard('actions');
       deck.push({ id: c.id, name: c.name, type: 'action' });
     }
-    return deck;
+    // デッキ内順序をシャッフル（各プレイヤー独立）
+    return shuffle(deck);
   }
 
   // 各プレイヤーへ配布（簡易：シャッフルなし、上から5枚を手札）
