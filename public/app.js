@@ -6,6 +6,9 @@ const roomIdLabel = document.getElementById('room-id');
 const scoreCharm = document.getElementById('score-charm');
 const scoreOji = document.getElementById('score-oji');
 const scoreTotal = document.getElementById('score-total');
+const noticeArea = document.getElementById('notice');
+
+const ROOM_ID_PATTERN = /^[a-z0-9-]{8}$/;
 
 const state = {
   roomId: null,
@@ -21,10 +24,26 @@ function generateRoomId() {
   return raw.toLowerCase();
 }
 
-function showLobby() {
+function setNotice(message) {
+  if (!noticeArea) return;
+  if (!message) {
+    noticeArea.textContent = '';
+    noticeArea.setAttribute('hidden', '');
+    return;
+  }
+  noticeArea.textContent = message;
+  noticeArea.removeAttribute('hidden');
+}
+
+function showLobby(withNotice) {
   lobbySection?.removeAttribute('hidden');
   roomSection?.setAttribute('hidden', '');
   state.roomId = null;
+  if (withNotice) {
+    setNotice(withNotice);
+  } else {
+    setNotice('');
+  }
 }
 
 function showRoom(roomId) {
@@ -32,6 +51,7 @@ function showRoom(roomId) {
   if (roomIdLabel) {
     roomIdLabel.textContent = roomId;
   }
+  setNotice('');
   updateScores(state.scores);
   lobbySection?.setAttribute('hidden', '');
   roomSection?.removeAttribute('hidden');
@@ -55,13 +75,22 @@ async function copyRoomLink() {
   }
 }
 
-function init() {
-  const roomMatch = location.pathname.match(/^\/room\/([a-z0-9-]{4,32})\/?$/);
-  if (roomMatch) {
-    showRoom(roomMatch[1]);
-  } else {
+function handleInitialRoute() {
+  const roomMatch = location.pathname.match(/^\/room\/([a-z0-9-]{1,32})\/?$/);
+  if (!roomMatch) {
     showLobby();
+    return;
   }
+  const requestedId = roomMatch[1];
+  if (!ROOM_ID_PATTERN.test(requestedId)) {
+    showLobby('無効な Room ID です。もう一度作成し直してください。');
+    return;
+  }
+  showRoom(requestedId);
+}
+
+function init() {
+  handleInitialRoute();
 
   createButton?.addEventListener('click', () => {
     const id = generateRoomId();
