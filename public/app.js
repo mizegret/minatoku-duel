@@ -11,6 +11,7 @@ const handSelf = document.getElementById('hand-self');
 const handOpponent = document.getElementById('hand-opponent');
 const fieldSelf = document.getElementById('field-self');
 const fieldOpponent = document.getElementById('field-opponent');
+const turnLabel = document.getElementById('turn-indicator');
 const actionButtons = [
   document.getElementById('action-summon'),
   document.getElementById('action-decorate'),
@@ -21,6 +22,7 @@ const actionButtons = [
 const ROOM_ID_PATTERN = /^[a-z0-9-]{8}$/;
 const ENV_ENDPOINT = '/env';
 const IS_LOCAL = ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(location.hostname);
+const TOTAL_TURNS = 5;
 
 const MOCK_SELF = {
   hand: [
@@ -66,6 +68,7 @@ const state = {
   opponent: { hand: [], field: { humans: [] } },
   actionLocked: false,
   env: null,
+  turn: 1,
 };
 
 function generateRoomId() {
@@ -144,11 +147,31 @@ function resetPlayers() {
   state.opponent = { hand: [], field: { humans: [] } };
 }
 
+function resetTurn() {
+  state.turn = 1;
+  updateTurnIndicator();
+}
+
 function updateScores({ charm, oji, total }) {
   if (scoreCharm) scoreCharm.textContent = String(charm ?? 0);
   if (scoreOji) scoreOji.textContent = String(oji ?? 0);
   const fallbackTotal = (charm ?? 0) + (oji ?? 0);
   if (scoreTotal) scoreTotal.textContent = String(total ?? fallbackTotal);
+}
+
+function updateTurnIndicator() {
+  if (!turnLabel) return;
+  turnLabel.textContent = `ターン ${state.turn} / ${TOTAL_TURNS}`;
+}
+
+function advanceTurn() {
+  if (state.turn < TOTAL_TURNS) {
+    state.turn += 1;
+  } else {
+    console.info('[turn] reached final turn (mock)');
+  }
+  updateTurnIndicator();
+  unlockActions();
 }
 
 function adjustScores({ charm = 0, oji = 0 } = {}) {
@@ -213,6 +236,7 @@ function loadMockGameState() {
 function prepareRoom({ useMock = true } = {}) {
   resetScores();
   resetPlayers();
+  resetTurn();
   if (useMock) {
     loadMockGameState();
   }
@@ -336,13 +360,15 @@ async function init() {
     }),
   );
 
-  // モック向け: console から window.mockNextTurn() でボタンを再有効化
+  document.getElementById('mock-next-turn')?.addEventListener('click', () => {
+    advanceTurn();
+  });
+
   window.mockNextTurn = () => {
-    unlockActions();
+    advanceTurn();
     console.log('[mock] 次のターンへ（ロック解除）');
   };
 
-  // モック向け: ロビーに戻るヘルパー
   window.mockToLobby = () => {
     navigateToLobby();
     console.log('[mock] ロビーへ戻りました');
