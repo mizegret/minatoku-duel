@@ -339,6 +339,7 @@ function handleMoveMessage(message) {
   // 盤面の最小更新（召喚/装飾）
   if (!game.fieldById) game.fieldById = {};
   const field = game.fieldById[actorId] ?? { humans: [] };
+  let lastAction = { type: data.action, actorId, cardName: undefined };
   if (data.action === 'summon') {
     // 手札から対象カードIDのhumanを取り出して場へ（ID優先、なければ最初のhuman）
     const hand = Array.isArray(game.handsById?.[actorId]) ? game.handsById[actorId] : [];
@@ -356,6 +357,7 @@ function handleMoveMessage(message) {
         field.humans.push({ id: humanCard.id, name: humanCard.name, decorations: [] });
         logAction('event', `summon: ${humanCard.name}`);
         console.debug('[host-move] summon after', { actorId, hand: hand.map((c)=>c.id), fieldCount: field.humans.length });
+        lastAction.cardName = humanCard.name;
       } else {
         // human以外を誤って指定した場合は手札へ戻す
         hand.splice(idx, 0, humanCard);
@@ -372,6 +374,7 @@ function handleMoveMessage(message) {
         const deco = pickCard('decorations');
         decorations.push({ id: deco.id, name: deco.name });
         first.decorations = decorations;
+        lastAction.cardName = deco.name;
       }
     }
   }
@@ -405,7 +408,7 @@ function handleMoveMessage(message) {
 
   // players を構築して配信
   const players = buildPlayers(game, members);
-  void publishState({ round, turnOwner: game.turnOwner, players, phase, roundHalf: game.half });
+  void publishState({ round, turnOwner: game.turnOwner, players, phase, roundHalf: game.half, lastAction });
 }
 
 function handleStateMessage(message) {
@@ -472,8 +475,20 @@ function applyStateSnapshot(snapshot) {
     }
     renderGame();
 
-    // 最小実装: 受信確認のための簡易ログのみ
-    logAction('state', `state 受信: round=${round} phase=${phase}`);
+    // ログ強化: 直近アクションのカード名を明示
+    const la = snapshot?.lastAction;
+    if (la && la.type) {
+      const actorLabel = la.actorId && la.actorId === myId ? 'あなた' : '相手';
+      let msg = '';
+      if (la.type === 'summon') msg = `${actorLabel}：召喚 → ${la.cardName ?? ''}`;
+      else if (la.type === 'decorate') msg = `${actorLabel}：装飾 → ${la.cardName ?? ''}`;
+      else if (la.type === 'play') msg = `${actorLabel}：アクション`;
+      else if (la.type === 'skip') msg = `${actorLabel}：スキップ`;
+      if (msg) logAction('move', msg);
+    } else {
+      // 最小実装: 受信確認
+      logAction('state', `state 受信: round=${round} phase=${phase}`);
+    }
 
     // 通知とアクション制御
     setNotice('');
@@ -696,16 +711,18 @@ function clearContainer(target) {
   target.innerHTML = '';
 }
 
-function renderHand(target, cards) {
+function renderHand(target, cards, mask = false) {
   if (!target) return;
   clearContainer(target);
   cards.forEach((card) => {
     const cardEl = document.createElement('div');
-    cardEl.className = `card card-${card.type}`;
-    cardEl.textContent = card.name;
-    cardEl.dataset.cardId = card.id;
-    cardEl.dataset.cardType = card.type || '';
-    cardEl.dataset.cardName = card.name || '';
+    cardEl.className = `card card-${card.type}${mask ? ' masked' : ''}`;
+    cardEl.textContent = mask ? '？？？' : card.name;
+    if (!mask) {
+      cardEl.dataset.cardId = card.id;
+      cardEl.dataset.cardType = card.type || '';
+      cardEl.dataset.cardName = card.name || '';
+    }
     target.appendChild(cardEl);
   });
 }
@@ -746,8 +763,8 @@ function renderField(target, field) {
 }
 
 function renderGame() {
-  renderHand(handSelf, state.self.hand);
-  renderHand(handOpponent, state.opponent.hand);
+  renderHand(handSelf, state.self.hand, false);
+  renderHand(handOpponent, state.opponent.hand, true);
   renderField(fieldSelf, state.self.field);
   renderField(fieldOpponent, state.opponent.field);
 }
