@@ -126,27 +126,24 @@ async function loadEnvironment() {
 async function loadCards() {
   try {
     const data = await fetchJson('/cards.json');
-    let humans = [];
-    let decorations = [];
-    let actions = [];
-    if (Array.isArray(data?.cards)) {
-      for (const c of data.cards) {
-        if (!c || typeof c !== 'object') continue;
-        const item = { id: String(c.id ?? ''), name: String(c.name ?? ''), type: String(c.type ?? '') };
-        if (item.type === 'human') humans.push(item);
-        else if (item.type === 'decoration' || item.type === 'decorations') decorations.push({ ...item, type: 'decoration' });
-        else if (item.type === 'action' || item.type === 'actions') actions.push({ ...item, type: 'action' });
-      }
-    } else {
-      // 旧スキーマ互換
-      humans = Array.isArray(data?.humans) ? data.humans.map((x) => ({ ...x, type: 'human' })) : [];
-      decorations = Array.isArray(data?.decorations) ? data.decorations.map((x) => ({ ...x, type: 'decoration' })) : [];
-      actions = Array.isArray(data?.actions) ? data.actions.map((x) => ({ ...x, type: 'action' })) : [];
+    if (!Array.isArray(data?.cards)) {
+      throw new Error('cards.json must have an array property "cards"');
+    }
+    const humans = [];
+    const decorations = [];
+    const actions = [];
+    for (const c of data.cards) {
+      if (!c || typeof c !== 'object') continue;
+      const item = { id: String(c.id ?? ''), name: String(c.name ?? ''), type: String(c.type ?? '') };
+      if (item.type === 'human') humans.push(item);
+      else if (item.type === 'decoration') decorations.push(item);
+      else if (item.type === 'action') actions.push(item);
+      // それ以外の type は無視（MVP）
     }
     state.cardsByType = { humans, decorations, actions };
-    console.info('[cards] loaded', { humans: humans.length, decorations: decorations.length, actions: actions.length });
+    console.info('[cards] loaded (new schema)', { humans: humans.length, decorations: decorations.length, actions: actions.length });
   } catch (e) {
-    console.warn('[cards] failed to load, using defaults', e);
+    console.warn('[cards] failed to load (new schema required), using defaults', e);
     state.cardsByType = {
       humans: [{ id: 'human-default', name: '港区女子（仮）', type: 'human' }],
       decorations: [{ id: 'deco-default', name: 'シャンパン（仮）', type: 'decoration' }],
@@ -426,10 +423,15 @@ function handleMoveMessage(message) {
 
   game.round = round;
 
+  // 新しい手番の開始時に1ドロー（最終ラウンドのended時はドローしない）
+  if (phase !== 'ended') {
+    drawCard(game.turnOwner, game);
+  }
+
   // players をメンバーから生成（存在しないIDはゼロスコア）
   const players = members.map((id) => ({
     clientId: id,
-    hand: [],
+    hand: Array.isArray(game.handsById?.[id]) ? game.handsById[id] : [],
     field: game.fieldById?.[id] ?? { humans: [] },
     scores: game.scoresById[id] ?? { charm: 0, oji: 0, total: 0 },
     deckCount: Array.isArray(game.decksById?.[id]) ? game.decksById[id].length : 0,
@@ -902,6 +904,16 @@ function pickCard(type) {
   return col[idx];
 }
 
+function drawCard(playerId, game) {
+  if (!game || !playerId) return null;
+  const deck = game.decksById?.[playerId];
+  if (!Array.isArray(deck) || deck.length === 0) return null;
+  const card = deck.shift();
+  if (!Array.isArray(game.handsById?.[playerId])) game.handsById[playerId] = [];
+  game.handsById[playerId].push(card);
+  return card;
+}
+
 function randInt(max) {
   if (max <= 0) return 0;
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
@@ -1044,11 +1056,14 @@ function ensureStarted() {
     game.scoresById[id] = { charm: 0, oji: 0, total: 0 };
   });
 
+  // 先攻の開始時ドロー
+  drawCard(hostId, game);
+
   // start → 初期state（playersに手札・空の場・初期スコアを含める）
   void publishStart();
   const players = members.map((id) => ({
     clientId: id,
-    hand: game.handsById[id] ?? [],
+    hand: Array.isArray(game.handsById?.[id]) ? game.handsById[id] : [],
     field: game.fieldById[id] ?? { humans: [] },
     scores: game.scoresById[id] ?? { charm: 0, oji: 0, total: 0 },
     deckCount: Array.isArray(game.decksById?.[id]) ? game.decksById[id].length : 0,
