@@ -158,6 +158,7 @@ function showRoom(roomId) {
   connectRealtime(roomId);
   lobbySection?.setAttribute('hidden', '');
   roomSection?.removeAttribute('hidden');
+  updateStartUI();
 }
 
 function resetScores() {
@@ -642,7 +643,6 @@ function prepareRoom({ useMock = false } = {}) {
   resetLog();
   state.started = false;
   state.hostId = null;
-  state.isHost = false;
   if (useMock) {
     loadMockGameState();
   }
@@ -747,12 +747,16 @@ async function init() {
   createButton?.addEventListener('click', (event) => {
     event.preventDefault();
     const id = generateRoomId();
+    // この端末が部屋を作成した＝Host として扱う（セッション内）
+    state.isHost = true;
+    state.hostId = null; // 接続後の clientId で確定
+    updateStartUI();
     navigateToRoom(id);
   });
 
   copyButton?.addEventListener('click', copyRoomLink);
 
-  // ゲーム開始（ホスト選出）
+  // ゲーム開始（Host のみが押せる想定。UI側でも非表示）
   startButton?.addEventListener('click', async () => {
     if (!ablyClient || !ablyChannel) return;
     const hostId = getClientId();
@@ -761,8 +765,6 @@ async function init() {
       return;
     }
     startButton.disabled = true;
-    state.hostId = hostId;
-    state.isHost = true;
     state.started = true;
     updateStartUI();
     // start → 初期state を順に送信
@@ -832,9 +834,21 @@ function updateStartUI() {
   if (!startButton) return;
   if (state.started) {
     startButton.setAttribute('hidden', '');
+    // 招待リンクは開始後も Host のみ表示
+    if (copyButton) {
+      if (state.isHost) copyButton.removeAttribute('hidden');
+      else copyButton.setAttribute('hidden', '');
+    }
     return;
   }
-  startButton.removeAttribute('hidden');
+  // Start ボタンは Host のみ表示
+  if (state.isHost) startButton.removeAttribute('hidden');
+  else startButton.setAttribute('hidden', '');
+  // 招待リンクコピーも Host のみ表示
+  if (copyButton) {
+    if (state.isHost) copyButton.removeAttribute('hidden');
+    else copyButton.setAttribute('hidden', '');
+  }
   const connected = !!ablyClient && ablyClient.connection?.state === 'connected';
   const channelReady = !!ablyChannel;
   startButton.disabled = !(connected && channelReady);
