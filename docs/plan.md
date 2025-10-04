@@ -132,3 +132,4 @@
 - 秘匿性は低いため、将来的に Cloudflare Worker 等で Ably Token Auth を導入し、ブラウザ配布を避ける。
 - 追加予定の Issue: 「Ably Token Auth 実装（Worker導入）」で追跡。
 - Cloudflare Pages 本番/Preview: `functions/env.js`（Pages Functions）経由で `/env` を返し、環境変数をブラウザへ渡す。
+- UI強化メモ: 人間カードと装飾カードのレイヤー表示（人物カードに装飾を重ねるUI）、アバター表現の検討はスタイル整備の次フェーズで対応。
