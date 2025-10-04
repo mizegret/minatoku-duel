@@ -32,6 +32,7 @@ let ablyChannel = null;
 let lastJoinedRoomId = null;
 let hasConnectionWatcher = false;
 const watchedChannels = new Set();
+const subscribedMessageChannels = new Set();
 const MOCK_SELF = {
   hand: [
     { id: 'card-001', name: '南青山みなみ', type: 'human' },
@@ -238,6 +239,49 @@ function unwatchChannel(channel) {
   watchedChannels.delete(channel.name);
 }
 
+function subscribeChannelMessages(channel) {
+  if (!channel || subscribedMessageChannels.has(channel.name)) return;
+  channel.subscribe('join', handleJoinMessage);
+  channel.subscribe('start', handleStartMessage);
+  channel.subscribe('move', handleMoveMessage);
+  channel.subscribe('state', handleStateMessage);
+  subscribedMessageChannels.add(channel.name);
+}
+
+function unsubscribeChannelMessages(channel) {
+  if (!channel || !subscribedMessageChannels.has(channel.name)) return;
+  channel.unsubscribe();
+  subscribedMessageChannels.delete(channel.name);
+}
+
+function handleJoinMessage(message) {
+  const data = message?.data ?? {};
+  logAction('event', `join 受信: ${data.clientId ?? 'unknown'}`);
+}
+
+function handleStartMessage(message) {
+  const data = message?.data ?? {};
+  logAction('event', `start 受信: host=${data.hostId ?? 'unknown'} members=${Array.isArray(data.members) ? data.members.length : 0}`);
+  // TODO: initialise local state when start is handled
+}
+
+function handleMoveMessage(message) {
+  const data = message?.data ?? {};
+  logAction('event', `move 受信: ${data.clientId ?? 'unknown'} → ${data.action ?? 'unknown'}`);
+  // TODO: hostはここでゲームロジックを処理する
+}
+
+function handleStateMessage(message) {
+  const snapshot = message?.data ?? {};
+  logAction('state', `state 受信: round=${snapshot.round ?? '?'} phase=${snapshot.phase ?? 'unknown'}`);
+  applyStateSnapshot(snapshot);
+}
+
+function applyStateSnapshot(snapshot) {
+  // TODO: 後続タスクで UI / gameState を同期させる
+  console.debug('[state] snapshot received', snapshot);
+}
+
 function connectRealtime(roomId) {
   if (!roomId) return;
   if (!state.env?.ABLY_API_KEY) {
@@ -287,6 +331,7 @@ function connectRealtime(roomId) {
   if (!ablyChannel) {
     ablyChannel = ablyClient.channels.get(channelName);
     watchChannel(ablyChannel);
+    subscribeChannelMessages(ablyChannel);
     logAction('network', `チャンネル接続要求: ${channelName}`);
     ablyChannel.attach((err) => {
       if (err) {
@@ -338,6 +383,7 @@ function detachRealtime() {
   lastJoinedRoomId = null;
   if (ablyChannel) {
     unwatchChannel(ablyChannel);
+    unsubscribeChannelMessages(ablyChannel);
     ablyChannel.detach();
     ablyChannel = null;
   }
