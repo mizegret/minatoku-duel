@@ -19,6 +19,7 @@ const actionButtons = [
   document.getElementById('action-play'),
   document.getElementById('action-skip'),
 ];
+const startButton = document.getElementById('action-start');
 
 const ROOM_ID_PATTERN = /^[a-z0-9-]{8}$/;
 const ENV_ENDPOINT = '/env';
@@ -79,6 +80,9 @@ const state = {
   env: null,
   turn: 1,
   log: [],
+  hostId: null,
+  isHost: false,
+  started: false,
 };
 
 function generateRoomId() {
@@ -149,6 +153,8 @@ function showRoom(roomId) {
   setNotice('');
   prepareRoom();
   setNotice('他のプレイヤーを待機中…');
+  // 開始前はアクションをロック
+  lockActions();
   connectRealtime(roomId);
   lobbySection?.setAttribute('hidden', '');
   roomSection?.removeAttribute('hidden');
@@ -219,6 +225,7 @@ function watchConnection() {
       ? ` (reason: ${change.reason.code ?? ''} ${change.reason.message ?? ''})`
       : '';
     logAction('network', `接続状態: ${change.previous} → ${change.current}${reason}`);
+    updateStartUI();
   });
 }
 
@@ -232,6 +239,9 @@ function watchChannel(channel) {
     logAction('network', `チャンネル failed (イベント)${reason}`);
   });
   channel.on('update', () => logAction('network', 'チャンネル update (イベント)'));
+  // UI 更新
+  channel.on('attached', updateStartUI);
+  channel.on('detached', updateStartUI);
 }
 
 function unwatchChannel(channel) {
@@ -263,7 +273,11 @@ function handleJoinMessage(message) {
 function handleStartMessage(message) {
   const data = message?.data ?? {};
   logAction('event', `start 受信: host=${data.hostId ?? 'unknown'} members=${Array.isArray(data.members) ? data.members.length : 0}`);
-  setNotice('ゲームが開始されました。ホストからの盤面更新を待機中…');
+  state.hostId = data.hostId ?? null;
+  state.isHost = !!state.hostId && state.hostId === getClientId();
+  state.started = true;
+  updateStartUI();
+  setNotice('');
 }
 
 function handleMoveMessage(message) {
@@ -535,6 +549,10 @@ function detachRealtime() {
     ablyChannel.detach();
     ablyChannel = null;
   }
+  state.started = false;
+  state.hostId = null;
+  state.isHost = false;
+  updateStartUI();
 }
 
 function advanceTurn() {
@@ -622,12 +640,17 @@ function prepareRoom({ useMock = false } = {}) {
   resetPlayers();
   resetTurn();
   resetLog();
+  state.started = false;
+  state.hostId = null;
+  state.isHost = false;
   if (useMock) {
     loadMockGameState();
   }
   renderGame();
-  unlockActions();
+  // 開始前はロックしておき、state受信で解放
+  lockActions();
   updateScores(state.scores);
+  updateStartUI();
 }
 
 function lockActions() {
@@ -729,6 +752,24 @@ async function init() {
 
   copyButton?.addEventListener('click', copyRoomLink);
 
+  // ゲーム開始（ホスト選出）
+  startButton?.addEventListener('click', async () => {
+    if (!ablyClient || !ablyChannel) return;
+    const hostId = getClientId();
+    if (!hostId) {
+      logAction('network', 'clientId 未確定のため開始できません');
+      return;
+    }
+    startButton.disabled = true;
+    state.hostId = hostId;
+    state.isHost = true;
+    state.started = true;
+    updateStartUI();
+    // start → 初期state を順に送信
+    await publishStart();
+    await publishState({ round: 1, phase: 'in-round', turnOwner: hostId });
+  });
+
   document.getElementById('action-summon')?.addEventListener(
     'click',
     logButtonAction('summon', '召喚：魅力 +1', () => {
@@ -785,6 +826,18 @@ async function init() {
     console.log('[mock] state を送信しました (テスト)');
   };
 
+}
+
+function updateStartUI() {
+  if (!startButton) return;
+  if (state.started) {
+    startButton.setAttribute('hidden', '');
+    return;
+  }
+  startButton.removeAttribute('hidden');
+  const connected = !!ablyClient && ablyClient.connection?.state === 'connected';
+  const channelReady = !!ablyChannel;
+  startButton.disabled = !(connected && channelReady);
 }
 
 init();
