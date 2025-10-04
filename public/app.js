@@ -83,6 +83,9 @@ const state = {
   hostId: null,
   isHost: false,
   started: false,
+  // move 実装向け（最小）
+  members: [], // 参加クライアントIDの簡易一覧
+  hostGame: null, // Host のみ保持する権威側のスコア・ターン
 };
 
 function generateRoomId() {
@@ -228,6 +231,11 @@ function watchConnection() {
     logAction('network', `接続状態: ${change.previous} → ${change.current}${reason}`);
     updateStartUI();
   });
+  // 自端末の clientId をメンバーに追加（connected 時）
+  ablyClient.connection.once('connected', () => {
+    const id = getClientId();
+    if (id) addMember(id);
+  });
 }
 
 function watchChannel(channel) {
@@ -269,6 +277,7 @@ function unsubscribeChannelMessages(channel) {
 function handleJoinMessage(message) {
   const data = message?.data ?? {};
   logAction('event', `join 受信: ${data.clientId ?? 'unknown'}`);
+  if (data.clientId) addMember(data.clientId);
 }
 
 function handleStartMessage(message) {
@@ -277,6 +286,16 @@ function handleStartMessage(message) {
   state.hostId = data.hostId ?? null;
   state.isHost = !!state.hostId && state.hostId === getClientId();
   state.started = true;
+  // Host 側の最小ゲーム状態を初期化
+  if (state.isHost) {
+    state.hostGame = {
+      round: 1,
+      turnOwner: getClientId(),
+      roundStarter: getClientId(),
+      half: 0,
+      scoresById: {},
+    };
+  }
   updateStartUI();
   setNotice('');
 }
@@ -284,7 +303,78 @@ function handleStartMessage(message) {
 function handleMoveMessage(message) {
   const data = message?.data ?? {};
   logAction('event', `move 受信: ${data.clientId ?? 'unknown'} → ${data.action ?? 'unknown'}`);
-  // TODO: hostはここでゲームロジックを処理する
+  // Host のみ処理して authoritative state を再配信
+  if (!state.isHost || !state.started) return;
+  const actorId = data.clientId;
+  if (!actorId) return;
+
+  // 最小のゲーム状態（Host 内部）
+  if (!state.hostGame) {
+    state.hostGame = { round: state.turn || 1, turnOwner: actorId, scoresById: {}, half: 0 };
+  }
+  const game = state.hostGame;
+
+  // 手番チェック（厳密化は後続）
+  if (game.turnOwner && actorId !== game.turnOwner) {
+    // 手番外は無視（最小実装）
+    logAction('event', '手番ではない move を無視');
+    return;
+  }
+
+  // スコア更新
+  const scores = game.scoresById[actorId] ?? { charm: 0, oji: 0, total: 0 };
+  switch (data.action) {
+    case 'summon':
+      scores.charm += 1; break;
+    case 'decorate':
+      scores.oji += 1; break;
+    case 'play':
+      scores.charm += 1; scores.oji += 1; break;
+    case 'skip':
+    default:
+      // 変化なし
+      break;
+  }
+  scores.total = scores.charm + scores.oji;
+  game.scoresById[actorId] = scores;
+
+  // 次の手番・ラウンド（2人想定）
+  const members = getMembers();
+  const opponent = members.find((id) => id && id !== actorId) || actorId;
+  let round = game.round || 1;
+  let phase = 'in-round';
+  const half = typeof game.half === 'number' ? game.half : 0; // 0:前半, 1:後半
+
+  if (half === 0) {
+    // 前半手が終了 → 手番を相手へ、ラウンド据え置き
+    game.half = 1;
+    game.turnOwner = opponent;
+    game.roundStarter = actorId;
+  } else {
+    // 後半手が終了 → ラウンド+1、手番を相手へ、半手リセット
+    if (round >= TOTAL_TURNS) {
+      // 最終ラウンドではインクリメントしない（デクリメント見えを避ける）
+      phase = 'ended';
+      round = TOTAL_TURNS;
+    } else {
+      round += 1;
+    }
+    game.half = 0;
+    game.turnOwner = opponent;
+    game.roundStarter = opponent; // 次ラウンドのスターター
+  }
+
+  game.round = round;
+
+  // players をメンバーから生成（存在しないIDはゼロスコア）
+  const players = members.map((id) => ({
+    clientId: id,
+    hand: [],
+    field: { humans: [] },
+    scores: game.scoresById[id] ?? { charm: 0, oji: 0, total: 0 },
+  }));
+
+  void publishState({ round, turnOwner: game.turnOwner, players, phase, roundHalf: game.half });
 }
 
 function handleStateMessage(message) {
@@ -306,9 +396,16 @@ function applyStateSnapshot(snapshot) {
     const me = players.find((p) => p?.clientId === myId) ?? players[0] ?? null;
     const opp = players.find((p) => p?.clientId && p.clientId !== myId) ?? players[1] ?? null;
 
-    // ターン・フェーズ反映
-    state.turn = round;
-    updateTurnIndicator();
+  // ターン・フェーズ反映（表示仕様）
+  // - ended 時は両者とも round を表示
+  // - それ以外: roundHalf=0（前半）は 自分のターン=round / 相手=round-1。roundHalf=1（後半）は両者=round
+  const myTurn = turnOwner && myId && turnOwner === myId;
+  const roundHalf = Number.isFinite(snapshot?.roundHalf) ? snapshot.roundHalf : 0;
+  const displayRound = (phase === 'ended')
+    ? (round || 1)
+    : ((myTurn || roundHalf === 1) ? (round || 1) : Math.max(1, (round || 1) - 1));
+  state.turn = displayRound;
+  updateTurnIndicator();
 
     // スコアは自分のものを優先して表示（なければ 0 ）
     const myScores = me?.scores ?? { charm: 0, oji: 0, total: undefined };
@@ -343,13 +440,12 @@ function applyStateSnapshot(snapshot) {
 
     // 通知とアクション制御
     setNotice('');
-    const myTurn = turnOwner && myId && turnOwner === myId;
     if (phase === 'ended' || phase === 'game-over' || round > TOTAL_TURNS) {
       lockActions();
       setNotice('ゲーム終了');
     } else if (myTurn) {
       unlockActions();
-      logAction('state', `あなたのターン（ラウンド ${round}）`);
+      logAction('state', `あなたのターン（ラウンド ${displayRound}）`);
     } else {
       lockActions();
       if (turnOwner) {
@@ -545,7 +641,6 @@ async function publishState(snapshot = {}) {
 function detachRealtime() {
   lastJoinedRoomId = null;
   if (ablyChannel) {
-    unwatchChannel(ablyChannel);
     unsubscribeChannelMessages(ablyChannel);
     ablyChannel.detach();
     ablyChannel = null;
@@ -553,6 +648,8 @@ function detachRealtime() {
   state.started = false;
   state.hostId = null;
   state.isHost = false;
+  state.members = [];
+  state.hostGame = null;
   updateStartUI();
 }
 
@@ -724,6 +821,24 @@ function logButtonAction(type, message, callback) {
   });
 }
 
+// --- minimal member helpers ---
+function addMember(clientId) {
+  if (!clientId) return;
+  if (!Array.isArray(state.members)) state.members = [];
+  if (!state.members.includes(clientId)) state.members.push(clientId);
+}
+
+function getMembers() {
+  if (!Array.isArray(state.members)) return [];
+  // 先頭に Host を寄せる（ある場合）
+  const host = state.hostId || getClientId();
+  const uniq = state.members.filter((id, i, arr) => id && arr.indexOf(id) === i);
+  if (host && uniq.includes(host)) {
+    return [host, ...uniq.filter((id) => id !== host)];
+  }
+  return uniq;
+}
+
 function navigateToRoom(roomId) {
   history.pushState({ roomId }, '', `/room/${roomId}`);
   showRoom(roomId);
@@ -769,34 +884,31 @@ async function init() {
     updateStartUI();
     // start → 初期state を順に送信
     await publishStart();
-    await publishState({ round: 1, phase: 'in-round', turnOwner: hostId });
+    await publishState({ round: 1, phase: 'in-round', turnOwner: hostId, roundHalf: 0 });
   });
 
   document.getElementById('action-summon')?.addEventListener(
     'click',
-    logButtonAction('summon', '召喚：魅力 +1', () => {
-      adjustScores({ charm: 1 });
-      console.log('summon: charm +1');
+    logButtonAction('summon', '召喚', () => {
+      void publishMove({ action: 'summon' });
     }),
   );
   document.getElementById('action-decorate')?.addEventListener(
     'click',
-    logButtonAction('decorate', '装飾：好感度 +1', () => {
-      adjustScores({ oji: 1 });
-      console.log('decorate: oji +1');
+    logButtonAction('decorate', '装飾', () => {
+      void publishMove({ action: 'decorate' });
     }),
   );
   document.getElementById('action-play')?.addEventListener(
     'click',
-    logButtonAction('play', 'アクション：魅力 +1 / 好感度 +1', () => {
-      adjustScores({ charm: 1, oji: 1 });
-      console.log('action: charm +1, oji +1');
+    logButtonAction('play', 'アクション', () => {
+      void publishMove({ action: 'play' });
     }),
   );
   document.getElementById('action-skip')?.addEventListener(
     'click',
     logButtonAction('skip', 'スキップ', () => {
-      console.log('skip: no change');
+      void publishMove({ action: 'skip' });
     }),
   );
 
