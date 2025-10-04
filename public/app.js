@@ -85,27 +85,20 @@ function setNotice(message) {
 }
 
 async function loadEnvironment() {
-  if (IS_LOCAL) {
+  const sources = IS_LOCAL ? ['/env.local.json'] : [ENV_ENDPOINT];
+
+  for (const source of sources) {
     try {
-      const env = await fetchJson('/env.local.json');
+      const env = await fetchJson(source);
       state.env = env;
-      console.info('[env] loaded from env.local.json', Object.keys(env));
+      console.info('[env] loaded from', source, Object.keys(env));
       return;
     } catch (error) {
-      console.warn('[env] failed to load env.local.json', error);
-      state.env = null;
-      return;
+      console.warn('[env] failed to load from', source, error);
     }
   }
 
-  try {
-    const env = await fetchJson(ENV_ENDPOINT);
-    state.env = env;
-    console.log('[env] loaded', Object.keys(env));
-  } catch (error) {
-    console.warn('[env] failed to load remote env', error);
-    state.env = null;
-  }
+  state.env = null;
 }
 
 async function fetchJson(url) {
@@ -137,16 +130,18 @@ function showRoom(roomId) {
     roomIdLabel.textContent = roomId;
   }
   setNotice('');
-  resetScores();
-  applyMockData();
-  unlockActions();
-  updateScores(state.scores);
+  prepareRoom();
   lobbySection?.setAttribute('hidden', '');
   roomSection?.removeAttribute('hidden');
 }
 
 function resetScores() {
   state.scores = { charm: 0, oji: 0, total: 0 };
+}
+
+function resetPlayers() {
+  state.self = { hand: [], field: { humans: [] } };
+  state.opponent = { hand: [], field: { humans: [] } };
 }
 
 function updateScores({ charm, oji, total }) {
@@ -203,14 +198,27 @@ function renderField(target, field) {
   });
 }
 
-function applyMockData() {
-  state.self = structuredClone(MOCK_SELF);
-  state.opponent = structuredClone(MOCK_OPPONENT);
-
+function renderGame() {
   renderHand(handSelf, state.self.hand);
   renderHand(handOpponent, state.opponent.hand);
   renderField(fieldSelf, state.self.field);
   renderField(fieldOpponent, state.opponent.field);
+}
+
+function loadMockGameState() {
+  state.self = structuredClone(MOCK_SELF);
+  state.opponent = structuredClone(MOCK_OPPONENT);
+}
+
+function prepareRoom({ useMock = true } = {}) {
+  resetScores();
+  resetPlayers();
+  if (useMock) {
+    loadMockGameState();
+  }
+  renderGame();
+  unlockActions();
+  updateScores(state.scores);
 }
 
 function lockActions() {
