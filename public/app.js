@@ -19,6 +19,8 @@ const actionButtons = [
 ];
 
 const ROOM_ID_PATTERN = /^[a-z0-9-]{8}$/;
+const ENV_ENDPOINT = '/__/env.json';
+const IS_LOCAL = ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(location.hostname);
 
 const MOCK_SELF = {
   hand: [
@@ -63,6 +65,7 @@ const state = {
   self: { hand: [], field: { humans: [] } },
   opponent: { hand: [], field: { humans: [] } },
   actionLocked: false,
+  env: null,
 };
 
 function generateRoomId() {
@@ -79,6 +82,40 @@ function setNotice(message) {
   }
   noticeArea.textContent = message;
   noticeArea.removeAttribute('hidden');
+}
+
+async function loadEnvironment() {
+  if (IS_LOCAL) {
+    try {
+      const env = await fetchJson('/env.local.json');
+      state.env = env;
+      console.info('[env] loaded from env.local.json', Object.keys(env));
+      return;
+    } catch (error) {
+      console.warn('[env] local env.local.json not available', error);
+    }
+  }
+
+  try {
+    const env = await fetchJson(ENV_ENDPOINT);
+    state.env = env;
+    console.log('[env] loaded', Object.keys(env));
+  } catch (error) {
+    console.warn('[env] failed to load remote env', error);
+    state.env = null;
+  }
+}
+
+async function fetchJson(url) {
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) {
+    throw new Error(`request failed: ${res.status} ${res.statusText}`);
+  }
+  const contentType = res.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    throw new Error(`unexpected content-type: ${contentType}`);
+  }
+  return res.json();
 }
 
 function showLobby(withNotice) {
@@ -244,7 +281,9 @@ function navigateToLobby(withNotice) {
   showLobby(withNotice);
 }
 
-function init() {
+async function init() {
+  await loadEnvironment();
+
   handleInitialRoute(history.state);
 
   window.addEventListener('popstate', (event) => {

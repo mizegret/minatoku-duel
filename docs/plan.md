@@ -126,3 +126,9 @@
 - MP（コスト）のリソース名と消費 / 回復仕様（港区モチーフへのフィット）。
 - カードデータの最小定義フォーマット（JSON 項目、効果種別）。
 - 演出基調: カラーパレット（候補: 沖縄の海トーン）、フォント、アイコン指針。
+
+## 14. 技術メモ（MVP向け環境変数管理）
+- Cloudflare Pages 本番/Preview: `/__/env.json` から環境変数を取得し、Ably APIキーなどのクライアント設定に利用する。
+- ローカル開発: `public/env.local.json` を用意し、同形式でキーを保持。`public/env.local.json.example` をテンプレとして配布。
+- 秘匿性は低いため、将来的に Cloudflare Worker 等で Ably Token Auth を導入し、ブラウザ配布を避ける。
+- 追加予定の Issue: 「Ably Token Auth 実装（Worker導入）」で追跡。
