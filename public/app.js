@@ -235,6 +235,7 @@ function watchConnection() {
   ablyClient.connection.once('connected', () => {
     const id = getClientId();
     if (id) addMember(id);
+    ensureStarted();
   });
 }
 
@@ -522,6 +523,7 @@ function connectRealtime(roomId) {
         return;
       }
       logAction('network', `チャンネル接続完了: ${channelName}`);
+      ensureStarted();
       if (ablyClient.connection.state === 'connected') {
         void publishJoin(roomId);
       } else {
@@ -653,15 +655,7 @@ function detachRealtime() {
   updateStartUI();
 }
 
-function advanceTurn() {
-  if (state.turn < TOTAL_TURNS) {
-    state.turn += 1;
-  } else {
-    console.info('[turn] reached final turn (mock)');
-  }
-  updateTurnIndicator();
-  unlockActions();
-}
+// dev-only advanceTurn removed
 
 function adjustScores({ charm = 0, oji = 0 } = {}) {
   state.scores.charm += charm;
@@ -728,21 +722,13 @@ function renderGame() {
   renderField(fieldOpponent, state.opponent.field);
 }
 
-function loadMockGameState() {
-  state.self = structuredClone(MOCK_SELF);
-  state.opponent = structuredClone(MOCK_OPPONENT);
-}
-
-function prepareRoom({ useMock = false } = {}) {
+function prepareRoom() {
   resetScores();
   resetPlayers();
   resetTurn();
   resetLog();
   state.started = false;
   state.hostId = null;
-  if (useMock) {
-    loadMockGameState();
-  }
   renderGame();
   // 開始前はロックしておき、state受信で解放
   lockActions();
@@ -912,58 +898,35 @@ async function init() {
     }),
   );
 
-  document.getElementById('mock-next-turn')?.addEventListener('click', () => {
-    advanceTurn();
-  });
-
-  window.mockNextTurn = () => {
-    advanceTurn();
-    console.log('[mock] 次のターンへ（ロック解除）');
-  };
-
-  window.mockToLobby = () => {
-    navigateToLobby();
-    console.log('[mock] ロビーへ戻りました');
-  };
-  window.mockPublishStart = (members) => {
-    void publishStart(members ?? []);
-    console.log('[mock] start を送信しました (テスト)');
-  };
-
-  window.mockPublishMove = (move) => {
-    void publishMove(move ?? {});
-    console.log('[mock] move を送信しました (テスト)');
-  };
-
-  window.mockPublishState = (snapshot) => {
-    void publishState(snapshot ?? {});
-    console.log('[mock] state を送信しました (テスト)');
-  };
-
 }
 
 function updateStartUI() {
-  if (!startButton) return;
-  if (state.started) {
-    startButton.setAttribute('hidden', '');
-    // 招待リンクは開始後も Host のみ表示
-    if (copyButton) {
-      if (state.isHost) copyButton.removeAttribute('hidden');
-      else copyButton.setAttribute('hidden', '');
-    }
-    return;
-  }
-  // Start ボタンは Host のみ表示
-  if (state.isHost) startButton.removeAttribute('hidden');
-  else startButton.setAttribute('hidden', '');
-  // 招待リンクコピーも Host のみ表示
+  // 招待リンクコピーは Host のみ表示
   if (copyButton) {
     if (state.isHost) copyButton.removeAttribute('hidden');
     else copyButton.setAttribute('hidden', '');
   }
+  // Start ボタンが存在しないならここで終わり
+  if (!startButton) return;
+  if (state.started) {
+    startButton.setAttribute('hidden', '');
+    return;
+  }
+  if (state.isHost) startButton.removeAttribute('hidden');
+  else startButton.setAttribute('hidden', '');
   const connected = !!ablyClient && ablyClient.connection?.state === 'connected';
-  const channelReady = !!ablyChannel;
-  startButton.disabled = !(connected && channelReady);
+  startButton.disabled = !connected;
+}
+
+function ensureStarted() {
+  if (state.started) return;
+  if (!state.isHost) return;
+  if (!ablyClient || ablyClient.connection?.state !== 'connected') return;
+  if (!ablyChannel) return;
+  // start → 初期state
+  void publishStart();
+  void publishState({ round: 1, phase: 'in-round', turnOwner: getClientId(), roundHalf: 0 });
+  state.started = true;
 }
 
 init();
