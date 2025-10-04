@@ -279,10 +279,74 @@ function handleStateMessage(message) {
 }
 
 function applyStateSnapshot(snapshot) {
-  // TODO: 後続タスクで UI / gameState を同期させる
-  console.debug('[state] snapshot received', snapshot);
-  setNotice('');
-  logAction('state', '盤面スナップショットを適用（未実装）');
+  // スナップショット（ホスト権威）を UI/状態へ反映
+  try {
+    const phase = snapshot?.phase ?? 'in-round';
+    const round = Number.isFinite(snapshot?.round) ? snapshot.round : state.turn;
+    const turnOwner = snapshot?.turnOwner ?? null;
+    const players = Array.isArray(snapshot?.players) ? snapshot.players : [];
+
+    // 自身/相手のプレイヤーを決定
+    const myId = getClientId();
+    const me = players.find((p) => p?.clientId === myId) ?? players[0] ?? null;
+    const opp = players.find((p) => p?.clientId && p.clientId !== myId) ?? players[1] ?? null;
+
+    // ターン・フェーズ反映
+    state.turn = round;
+    updateTurnIndicator();
+
+    // スコアは自分のものを優先して表示（なければ 0 ）
+    const myScores = me?.scores ?? { charm: 0, oji: 0, total: undefined };
+    state.scores = {
+      charm: Number.isFinite(myScores.charm) ? myScores.charm : 0,
+      oji: Number.isFinite(myScores.oji) ? myScores.oji : 0,
+      total: Number.isFinite(myScores.total) ? myScores.total : undefined,
+    };
+    updateScores(state.scores);
+
+    // 盤面・手札
+    if (me) {
+      state.self = {
+        hand: Array.isArray(me.hand) ? me.hand : [],
+        field: me.field && Array.isArray(me.field?.humans)
+          ? { humans: me.field.humans }
+          : { humans: [] },
+      };
+    }
+    if (opp) {
+      state.opponent = {
+        hand: Array.isArray(opp.hand) ? opp.hand : [],
+        field: opp.field && Array.isArray(opp.field?.humans)
+          ? { humans: opp.field.humans }
+          : { humans: [] },
+      };
+    }
+    renderGame();
+
+    // 最小実装: 受信確認のための簡易ログのみ
+    logAction('state', `state 受信: round=${round} phase=${phase}`);
+
+    // 通知とアクション制御
+    setNotice('');
+    const myTurn = turnOwner && myId && turnOwner === myId;
+    if (phase === 'ended' || phase === 'game-over' || round > TOTAL_TURNS) {
+      lockActions();
+      setNotice('ゲーム終了');
+    } else if (myTurn) {
+      unlockActions();
+      logAction('state', `あなたのターン（ラウンド ${round}）`);
+    } else {
+      lockActions();
+      if (turnOwner) {
+        setNotice('相手のターンです…');
+      }
+    }
+
+    logAction('state', '盤面を同期しました');
+  } catch (e) {
+    console.warn('[state] failed to apply snapshot', e);
+    logAction('state', 'スナップショット適用に失敗しました');
+  }
 }
 
 function connectRealtime(roomId) {
