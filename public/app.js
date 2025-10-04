@@ -33,40 +33,7 @@ let ablyClient = null;
 let ablyChannel = null;
 let lastJoinedRoomId = null;
 let hasConnectionWatcher = false;
-const watchedChannels = new Set();
 const subscribedMessageChannels = new Set();
-const MOCK_SELF = {
-  hand: [
-    { id: 'card-001', name: '南青山みなみ', type: 'human' },
-    { id: 'card-002', name: '三田シャンパン', type: 'decoration' },
-    { id: 'card-003', name: '裏原ストーリー', type: 'action' },
-  ],
-  field: {
-    humans: [
-      {
-        id: 'field-human-1',
-        name: '表参道りな',
-        decorations: [{ id: 'dec-01', name: 'ヴィトンバッグ' }],
-      },
-    ],
-  },
-};
-
-const MOCK_OPPONENT = {
-  hand: [{ id: 'opp-card-001', name: '西麻布サワー', type: 'action' }],
-  field: {
-    humans: [
-      {
-        id: 'opp-human-1',
-        name: '赤坂まりこ',
-        decorations: [
-          { id: 'opp-dec-01', name: 'ドンペリピンク' },
-          { id: 'opp-dec-02', name: 'ロエベトート' },
-        ],
-      },
-    ],
-  },
-};
 
 const state = {
   roomId: null,
@@ -275,26 +242,7 @@ function watchConnection() {
   });
 }
 
-function watchChannel(channel) {
-  if (!channel || watchedChannels.has(channel.name)) return;
-  watchedChannels.add(channel.name);
-  channel.on('attached', () => logAction('network', 'チャンネル attached (イベント)'));
-  channel.on('detached', () => logAction('network', 'チャンネル detached (イベント)'));
-  channel.on('failed', (err) => {
-    const reason = err ? ` (code: ${err.code ?? ''} message: ${err.message ?? ''})` : '';
-    logAction('network', `チャンネル failed (イベント)${reason}`);
-  });
-  channel.on('update', () => logAction('network', 'チャンネル update (イベント)'));
-  // UI 更新
-  channel.on('attached', updateStartUI);
-  channel.on('detached', updateStartUI);
-}
-
-function unwatchChannel(channel) {
-  if (!channel || !watchedChannels.has(channel.name)) return;
-  channel.off();
-  watchedChannels.delete(channel.name);
-}
+// channel-level verbose watchersは削除（最小ログ運用）
 
 function subscribeChannelMessages(channel) {
   if (!channel || subscribedMessageChannels.has(channel.name)) return;
@@ -454,15 +402,8 @@ function handleMoveMessage(message) {
     drawCard(game.turnOwner, game);
   }
 
-  // players をメンバーから生成（存在しないIDはゼロスコア）
-  const players = members.map((id) => ({
-    clientId: id,
-    hand: Array.isArray(game.handsById?.[id]) ? game.handsById[id] : [],
-    field: game.fieldById?.[id] ?? { humans: [] },
-    scores: game.scoresById[id] ?? { charm: 0, oji: 0, total: 0 },
-    deckCount: Array.isArray(game.decksById?.[id]) ? game.decksById[id].length : 0,
-  }));
-
+  // players を構築して配信
+  const players = buildPlayers(game, members);
   void publishState({ round, turnOwner: game.turnOwner, players, phase, roundHalf: game.half });
 }
 
@@ -594,7 +535,6 @@ function connectRealtime(roomId) {
 
   const channelName = `${ABLY_CHANNEL_PREFIX}${roomId}`;
   if (ablyChannel && ablyChannel.name !== channelName) {
-    unwatchChannel(ablyChannel);
     unsubscribeChannelMessages(ablyChannel);
     ablyChannel.detach();
     ablyChannel = null;
@@ -603,7 +543,6 @@ function connectRealtime(roomId) {
 
   if (!ablyChannel) {
     ablyChannel = ablyClient.channels.get(channelName);
-    watchChannel(ablyChannel);
     subscribeChannelMessages(ablyChannel);
     logAction('network', `チャンネル接続要求: ${channelName}`);
     ablyChannel.attach((err) => {
@@ -748,12 +687,7 @@ function detachRealtime() {
 
 // dev-only advanceTurn removed
 
-function adjustScores({ charm = 0, oji = 0 } = {}) {
-  state.scores.charm += charm;
-  state.scores.oji += oji;
-  state.scores.total = state.scores.charm + state.scores.oji;
-  updateScores(state.scores);
-}
+// adjustScores は move のホスト処理に置き換わったため削除
 
 function clearContainer(target) {
   if (!target) return;
@@ -964,6 +898,16 @@ function shuffle(arr) {
   return a;
 }
 
+function buildPlayers(game, members) {
+  return members.map((id) => ({
+    clientId: id,
+    hand: Array.isArray(game.handsById?.[id]) ? game.handsById[id] : [],
+    field: game.fieldById?.[id] ?? { humans: [] },
+    scores: game.scoresById?.[id] ?? { charm: 0, oji: 0, total: 0 },
+    deckCount: Array.isArray(game.decksById?.[id]) ? game.decksById[id].length : 0,
+  }));
+}
+
 function navigateToRoom(roomId) {
   history.pushState({ roomId }, '', `/room/${roomId}`);
   showRoom(roomId);
@@ -1108,15 +1052,12 @@ function ensureStarted() {
 
   // start → 初期state（playersに手札・空の場・初期スコアを含める）
   void publishStart();
-  const players = members.map((id) => ({
-    clientId: id,
-    hand: Array.isArray(game.handsById?.[id]) ? game.handsById[id] : [],
-    field: game.fieldById[id] ?? { humans: [] },
-    scores: game.scoresById[id] ?? { charm: 0, oji: 0, total: 0 },
-    deckCount: Array.isArray(game.decksById?.[id]) ? game.decksById[id].length : 0,
-  }));
+  const players = buildPlayers(game, members);
   void publishState({ round: 1, phase: 'in-round', turnOwner: hostId, roundHalf: 0, players });
   state.started = true;
 }
 
 init();
+// ---- Constants / Flags ----------------------------------------------------
+const DEBUG = true;
+const CARD_TYPES = { HUMAN: 'human', DECORATION: 'decoration', ACTION: 'action' };
