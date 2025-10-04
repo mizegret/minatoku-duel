@@ -162,26 +162,48 @@
       }
 
       .field-human {
-        flex: 1 1 140px;
+        flex: 1 1 160px;
         border: 1px dashed var(--border);
-        border-radius: 12px;
-        padding: 12px;
-        background: rgba(57, 238, 240, 0.1);
-      }
-
-      .field-human-name {
-        font-weight: 600;
-        margin-bottom: 6px;
-      }
-
-      .field-decorations {
-        list-style: none;
-        padding: 0;
-        margin: 0;
+        border-radius: 16px;
+        padding: 14px;
+        background: rgba(57, 238, 240, 0.12);
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        font-size: 0.9rem;
+        gap: 10px;
+      }
+
+      .field-human-card {
+        background: #ffffff;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        padding: 12px;
+        font-weight: 600;
+        box-shadow: 0 4px 14px var(--card-shadow);
+        min-width: 130px;
+      }
+
+      .field-human-decorations {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .decoration-slot {
+        min-width: 98px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px dashed var(--border);
+        font-size: 0.8rem;
+        color: var(--muted);
+        text-align: center;
+        background: rgba(15, 23, 42, 0.04);
+      }
+
+      .decoration-slot.has-decoration {
+        border: 1px solid rgba(57, 238, 240, 0.6);
+        background: rgba(57, 238, 240, 0.18);
+        color: var(--fg);
+        font-weight: 600;
       }
 
       .actions {
@@ -204,12 +226,14 @@
         border: 1px solid var(--border);
         padding: 12px;
         min-height: 72px;
+        max-height: 220px;
         display: flex;
         flex-direction: column;
         gap: 6px;
         font-size: 0.9rem;
         color: var(--muted);
         margin-top: 12px;
+        overflow-y: auto;
       }
 
       .log-entry {
@@ -278,6 +302,23 @@
 
         .field-human {
           background: rgba(23, 94, 110, 0.35);
+        }
+
+        .field-human-card {
+          background: rgba(10, 32, 40, 0.95);
+          color: var(--fg);
+        }
+
+        .decoration-slot {
+          border: 1px dashed rgba(57, 238, 240, 0.35);
+          background: rgba(10, 32, 40, 0.55);
+          color: rgba(230, 251, 255, 0.8);
+        }
+
+        .decoration-slot.has-decoration {
+          border: 1px solid rgba(57, 238, 240, 0.6);
+          background: rgba(57, 238, 240, 0.3);
+          color: var(--fg);
         }
       }
 

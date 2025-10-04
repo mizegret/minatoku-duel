@@ -25,6 +25,7 @@ const ENV_ENDPOINT = '/env';
 const IS_LOCAL = ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(location.hostname);
 const TOTAL_TURNS = 5;
 const ABLY_CHANNEL_PREFIX = 'room:';
+const MAX_DECORATIONS_PER_HUMAN = 2;
 
 let ablyClient = null;
 let ablyChannel = null;
@@ -381,20 +382,31 @@ function renderField(target, field) {
   field.humans.forEach((human) => {
     const humanEl = document.createElement('div');
     humanEl.className = 'field-human';
-    const nameEl = document.createElement('div');
-    nameEl.className = 'field-human-name';
-    nameEl.textContent = human.name;
-    humanEl.appendChild(nameEl);
 
-    const decorationsEl = document.createElement('ul');
-    decorationsEl.className = 'field-decorations';
-    human.decorations?.forEach((decoration) => {
-      const li = document.createElement('li');
-      li.textContent = decoration.name;
-      decorationsEl.appendChild(li);
-    });
+    const cardEl = document.createElement('div');
+    cardEl.className = 'field-human-card';
+    cardEl.textContent = human.name;
+    humanEl.appendChild(cardEl);
 
-    humanEl.appendChild(decorationsEl);
+    const decorationsWrap = document.createElement('div');
+    decorationsWrap.className = 'field-human-decorations';
+    const decorations = human.decorations ?? [];
+    for (let i = 0; i < MAX_DECORATIONS_PER_HUMAN; i += 1) {
+      const decoration = decorations[i];
+      const slot = document.createElement('div');
+      slot.className = 'decoration-slot';
+      if (decoration) {
+        slot.classList.add('has-decoration');
+        slot.textContent = decoration.name;
+        slot.title = decoration.name;
+      } else {
+        slot.textContent = '＋';
+        slot.title = '空きスロット';
+      }
+      decorationsWrap.appendChild(slot);
+    }
+
+    humanEl.appendChild(decorationsWrap);
     target.appendChild(humanEl);
   });
 }
