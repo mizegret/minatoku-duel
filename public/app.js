@@ -323,6 +323,7 @@ function connectRealtime(roomId) {
   const channelName = `${ABLY_CHANNEL_PREFIX}${roomId}`;
   if (ablyChannel && ablyChannel.name !== channelName) {
     unwatchChannel(ablyChannel);
+    unsubscribeChannelMessages(ablyChannel);
     ablyChannel.detach();
     ablyChannel = null;
     lastJoinedRoomId = null;
@@ -375,6 +376,86 @@ async function publishJoin(roomId) {
     const message = err?.code === 40160
       ? 'join の送信に必要な権限が不足しています'
       : 'join の送信に失敗しました';
+    logAction('network', message);
+  }
+}
+
+function getClientId() {
+  return ablyClient?.auth?.clientId ?? null;
+}
+
+async function publishStart(members = []) {
+  if (!ablyChannel || !ablyClient || !state.roomId) return;
+  const payload = {
+    roomId: state.roomId,
+    hostId: getClientId(),
+    members: members.length ? members : [{ clientId: getClientId() }],
+    startedAt: Date.now(),
+  };
+
+  try {
+    logAction('network', 'start を送信中…');
+    await ablyChannel.publish('start', payload);
+    logAction('network', 'start を送信しました');
+  } catch (err) {
+    console.warn('[ably] start publish failed', err);
+    const message = err?.code === 40160
+      ? 'start の送信に必要な権限が不足しています'
+      : 'start の送信に失敗しました';
+    logAction('network', message);
+  }
+}
+
+async function publishMove(move = {}) {
+  if (!ablyChannel || !ablyClient || !state.roomId) return;
+  const payload = {
+    clientId: getClientId(),
+    round: state.turn,
+    action: 'summon',
+    cardId: 'card-mock',
+    ...move,
+  };
+
+  try {
+    logAction('network', `move を送信中… (${payload.action})`);
+    await ablyChannel.publish('move', payload);
+    logAction('network', 'move を送信しました');
+  } catch (err) {
+    console.warn('[ably] move publish failed', err);
+    const message = err?.code === 40160
+      ? 'move の送信に必要な権限が不足しています'
+      : 'move の送信に失敗しました';
+    logAction('network', message);
+  }
+}
+
+async function publishState(snapshot = {}) {
+  if (!ablyChannel || !ablyClient || !state.roomId) return;
+  const baseSnapshot = {
+    phase: snapshot.phase ?? 'in-round',
+    round: snapshot.round ?? state.turn,
+    turnOwner: snapshot.turnOwner ?? getClientId(),
+    players: snapshot.players ?? [
+      {
+        clientId: getClientId(),
+        hand: state.self?.hand ?? [],
+        field: state.self?.field ?? { humans: [] },
+        scores: state.scores ?? { charm: 0, oji: 0, total: 0 },
+      },
+    ],
+    log: snapshot.log ?? state.log.slice(-5),
+    updatedAt: Date.now(),
+  };
+
+  try {
+    logAction('network', 'state を送信中…');
+    await ablyChannel.publish('state', { ...baseSnapshot, ...snapshot });
+    logAction('network', 'state を送信しました');
+  } catch (err) {
+    console.warn('[ably] state publish failed', err);
+    const message = err?.code === 40160
+      ? 'state の送信に必要な権限が不足しています'
+      : 'state の送信に失敗しました';
     logAction('network', message);
   }
 }
@@ -622,6 +703,21 @@ async function init() {
     navigateToLobby();
     console.log('[mock] ロビーへ戻りました');
   };
+  window.mockPublishStart = (members) => {
+    void publishStart(members ?? []);
+    console.log('[mock] start を送信しました (テスト)');
+  };
+
+  window.mockPublishMove = (move) => {
+    void publishMove(move ?? {});
+    console.log('[mock] move を送信しました (テスト)');
+  };
+
+  window.mockPublishState = (snapshot) => {
+    void publishState(snapshot ?? {});
+    console.log('[mock] state を送信しました (テスト)');
+  };
+
 }
 
 init();
