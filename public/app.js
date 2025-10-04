@@ -7,8 +7,45 @@ const scoreCharm = document.getElementById('score-charm');
 const scoreOji = document.getElementById('score-oji');
 const scoreTotal = document.getElementById('score-total');
 const noticeArea = document.getElementById('notice');
+const handSelf = document.getElementById('hand-self');
+const handOpponent = document.getElementById('hand-opponent');
+const fieldSelf = document.getElementById('field-self');
+const fieldOpponent = document.getElementById('field-opponent');
 
 const ROOM_ID_PATTERN = /^[a-z0-9-]{8}$/;
+
+const MOCK_SELF = {
+  hand: [
+    { id: 'card-001', name: '南青山みなみ', type: 'human' },
+    { id: 'card-002', name: '三田シャンパン', type: 'decoration' },
+    { id: 'card-003', name: '裏原ストーリー', type: 'action' },
+  ],
+  field: {
+    humans: [
+      {
+        id: 'field-human-1',
+        name: '表参道りな',
+        decorations: [{ id: 'dec-01', name: 'ヴィトンバッグ' }],
+      },
+    ],
+  },
+};
+
+const MOCK_OPPONENT = {
+  hand: [{ id: 'opp-card-001', name: '西麻布サワー', type: 'action' }],
+  field: {
+    humans: [
+      {
+        id: 'opp-human-1',
+        name: '赤坂まりこ',
+        decorations: [
+          { id: 'opp-dec-01', name: 'ドンペリピンク' },
+          { id: 'opp-dec-02', name: 'ロエベトート' },
+        ],
+      },
+    ],
+  },
+};
 
 const state = {
   roomId: null,
@@ -17,6 +54,8 @@ const state = {
     oji: 0,
     total: 0,
   },
+  self: { hand: [], field: { humans: [] } },
+  opponent: { hand: [], field: { humans: [] } },
 };
 
 function generateRoomId() {
@@ -53,6 +92,7 @@ function showRoom(roomId) {
   }
   setNotice('');
   resetScores();
+  applyMockData();
   updateScores(state.scores);
   lobbySection?.setAttribute('hidden', '');
   roomSection?.removeAttribute('hidden');
@@ -74,6 +114,56 @@ function adjustScores({ charm = 0, oji = 0 } = {}) {
   state.scores.oji += oji;
   state.scores.total = state.scores.charm + state.scores.oji;
   updateScores(state.scores);
+}
+
+function clearContainer(target) {
+  if (!target) return;
+  target.innerHTML = '';
+}
+
+function renderHand(target, cards) {
+  if (!target) return;
+  clearContainer(target);
+  cards.forEach((card) => {
+    const cardEl = document.createElement('div');
+    cardEl.className = `card card-${card.type}`;
+    cardEl.textContent = card.name;
+    target.appendChild(cardEl);
+  });
+}
+
+function renderField(target, field) {
+  if (!target) return;
+  clearContainer(target);
+  field.humans.forEach((human) => {
+    const humanEl = document.createElement('div');
+    humanEl.className = 'field-human';
+    const nameEl = document.createElement('div');
+    nameEl.className = 'field-human-name';
+    nameEl.textContent = human.name;
+    humanEl.appendChild(nameEl);
+
+    const decorationsEl = document.createElement('ul');
+    decorationsEl.className = 'field-decorations';
+    human.decorations?.forEach((decoration) => {
+      const li = document.createElement('li');
+      li.textContent = decoration.name;
+      decorationsEl.appendChild(li);
+    });
+
+    humanEl.appendChild(decorationsEl);
+    target.appendChild(humanEl);
+  });
+}
+
+function applyMockData() {
+  state.self = structuredClone(MOCK_SELF);
+  state.opponent = structuredClone(MOCK_OPPONENT);
+
+  renderHand(handSelf, state.self.hand);
+  renderHand(handOpponent, state.opponent.hand);
+  renderField(fieldSelf, state.self.field);
+  renderField(fieldOpponent, state.opponent.field);
 }
 
 async function copyRoomLink() {
