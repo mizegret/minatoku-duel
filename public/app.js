@@ -51,6 +51,7 @@ const state = {
   hostId: null,
   isHost: false,
   started: false,
+  isMyTurn: false,
   // move 実装向け（最小）
   members: [], // 参加クライアントIDの簡易一覧
   hostGame: null, // Host のみ保持する権威側のスコア・ターン
@@ -436,6 +437,7 @@ function applyStateSnapshot(snapshot) {
     : ((myTurn || roundHalf === 1) ? (round || 1) : Math.max(1, (round || 1) - 1));
   state.turn = displayRound;
   updateTurnIndicator();
+  state.isMyTurn = !!myTurn;
 
     // 山札枚数（あれば表示）
     const selfDeck = Number.isFinite(me?.deckCount) ? me.deckCount : 0;
@@ -767,11 +769,13 @@ function prepareRoom() {
 function lockActions() {
   state.actionLocked = true;
   setActionButtonsDisabled(true);
+  updateHandInteractivity();
 }
 
 function unlockActions() {
   state.actionLocked = false;
   setActionButtonsDisabled(false);
+  updateHandInteractivity();
 }
 
 function setActionButtonsDisabled(disabled) {
@@ -779,6 +783,13 @@ function setActionButtonsDisabled(disabled) {
     if (!button) return;
     button.disabled = disabled;
   });
+}
+
+// Enable/disable self hand interactivity based on turn/lock
+function updateHandInteractivity() {
+  if (!handSelf) return;
+  if (state.isMyTurn && !state.actionLocked) handSelf.classList.remove('disabled');
+  else handSelf.classList.add('disabled');
 }
 
 async function copyRoomLink() {
@@ -946,6 +957,7 @@ async function init() {
     const target = ev.target;
     if (!(target instanceof HTMLElement)) return;
     if (!target.classList.contains('card')) return;
+    if (!state.isMyTurn || state.actionLocked) return;
     const cardId = target.dataset.cardId;
     const cardType = target.dataset.cardType;
     const cardName = target.dataset.cardName || '';
@@ -962,13 +974,6 @@ async function init() {
   });
 
   // Startボタンは廃止（自動開始）
-
-  document.getElementById('action-summon')?.addEventListener(
-    'click',
-    logButtonAction('summon', '召喚', () => {
-      void publishMove({ action: 'summon' });
-    }),
-  );
   document.getElementById('action-decorate')?.addEventListener(
     'click',
     logButtonAction('decorate', '装飾', () => {
