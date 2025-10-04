@@ -133,3 +133,45 @@
 - 追加予定の Issue: 「Ably Token Auth 実装（Worker導入）」で追跡。
 - Cloudflare Pages 本番/Preview: `functions/env.js`（Pages Functions）経由で `/env` を返し、環境変数をブラウザへ渡す。
 - UI強化メモ: 人間カードと装飾カードのレイヤー表示（人物カードに装飾を重ねるUI）、アバター表現の検討はスタイル整備の次フェーズで対応。
+
+## 15. リアルタイムメッセージ仕様（Ably）
+- 共通フォーマット: `channel.publish(<event>, <payload>)` の形で送受信。payload は JSON オブジェクトで揃える。
+
+- `join`
+  - 送信者: 参加したクライアント（自動送信）。
+  - 受信者: 全員（ホストは参加者リストを更新し、他クライアントは参加者表示を更新）。
+  - payload: `{ clientId, joinedAt }`
+  - 備考: 当面は `clientId` の簡易表示で運用し、名前入力は将来の Issue とする。ホストは受信後に参加者リストを更新し、最新の `state` をブロードキャストする。
+
+- `start`
+  - 送信者: ホスト。
+  - 受信者: 全員（参加者はゲーム開始を把握し、ローカル状態を初期化）。
+  - payload: `{ roomId, hostId, members: [{ clientId }], startedAt }`
+  - 備考: start 時点でホストが権威となり、以降はホストのみ `state` を送る。
+
+- `move`
+  - 送信者: 各プレイヤー（1ターンにつき1回）。
+  - 受信者: 全員（ただしホストのみ処理し、他端末はログ用程度に留める）。
+  - payload: `{ clientId, round, action: 'summon' | 'decorate' | 'play' | 'skip', cardId?, targetId?, extras? }`
+  - 備考: ホストのみが処理し、正当性チェック後に `state` 更新。クライアント側は UI を更新せず `state` を待つ。
+
+- `state`
+  - 送信者: ホスト。
+  - 受信者: 全員（ホストの authoritative state を同期）。
+  - payload 例:
+    ```json
+    {
+      "phase": "in-round",
+      "round": 3,
+      "turnOwner": "client-123",
+      "players": [
+        { "clientId": "client-123", "hand": ["c01", "c02"], "field": {...}, "scores": { "charm": 4, "oji": 5 } },
+        { "clientId": "client-456", ... }
+      ],
+      "log": [ { "type": "move", "clientId": "client-123", "message": "召喚 → c05", "at": 1728000000 } ],
+      "updatedAt": 1728000000
+    }
+    ```
+  - 備考: クライアントは `state` をそのまま描画状態に反映し、ローカル表示をリセットする。
+
+- 公開メモ: README にキー設定とイベント仕様の概要を追記予定。将来的にサーバ側検証へ移行できるよう、payload は冗長でも明示的に定義する。
