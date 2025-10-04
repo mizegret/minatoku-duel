@@ -11,6 +11,12 @@ const handSelf = document.getElementById('hand-self');
 const handOpponent = document.getElementById('hand-opponent');
 const fieldSelf = document.getElementById('field-self');
 const fieldOpponent = document.getElementById('field-opponent');
+const actionButtons = [
+  document.getElementById('action-summon'),
+  document.getElementById('action-decorate'),
+  document.getElementById('action-play'),
+  document.getElementById('action-skip'),
+];
 
 const ROOM_ID_PATTERN = /^[a-z0-9-]{8}$/;
 
@@ -56,6 +62,7 @@ const state = {
   },
   self: { hand: [], field: { humans: [] } },
   opponent: { hand: [], field: { humans: [] } },
+  actionLocked: false,
 };
 
 function generateRoomId() {
@@ -93,6 +100,7 @@ function showRoom(roomId) {
   setNotice('');
   resetScores();
   applyMockData();
+  unlockActions();
   updateScores(state.scores);
   lobbySection?.setAttribute('hidden', '');
   roomSection?.removeAttribute('hidden');
@@ -166,6 +174,23 @@ function applyMockData() {
   renderField(fieldOpponent, state.opponent.field);
 }
 
+function lockActions() {
+  state.actionLocked = true;
+  setActionButtonsDisabled(true);
+}
+
+function unlockActions() {
+  state.actionLocked = false;
+  setActionButtonsDisabled(false);
+}
+
+function setActionButtonsDisabled(disabled) {
+  actionButtons.forEach((button) => {
+    if (!button) return;
+    button.disabled = disabled;
+  });
+}
+
 async function copyRoomLink() {
   if (!state.roomId) return;
   const url = `${location.origin}/room/${state.roomId}`;
@@ -192,6 +217,17 @@ function handleInitialRoute() {
   showRoom(requestedId);
 }
 
+function ensureSingleAction(callback) {
+  return () => {
+    if (state.actionLocked) {
+      console.log('1ターンにつき1アクションのみ（モック）');
+      return;
+    }
+    callback();
+    lockActions();
+  };
+}
+
 function init() {
   handleInitialRoute();
 
@@ -202,21 +238,39 @@ function init() {
 
   copyButton?.addEventListener('click', copyRoomLink);
 
-  document.getElementById('action-summon')?.addEventListener('click', () => {
-    adjustScores({ charm: 1 });
-    console.log('summon: charm +1');
-  });
-  document.getElementById('action-decorate')?.addEventListener('click', () => {
-    adjustScores({ oji: 1 });
-    console.log('decorate: oji +1');
-  });
-  document.getElementById('action-play')?.addEventListener('click', () => {
-    adjustScores({ charm: 1, oji: 1 });
-    console.log('action: charm +1, oji +1');
-  });
-  document.getElementById('action-skip')?.addEventListener('click', () => {
-    console.log('skip: no change');
-  });
+  document.getElementById('action-summon')?.addEventListener(
+    'click',
+    ensureSingleAction(() => {
+      adjustScores({ charm: 1 });
+      console.log('summon: charm +1');
+    }),
+  );
+  document.getElementById('action-decorate')?.addEventListener(
+    'click',
+    ensureSingleAction(() => {
+      adjustScores({ oji: 1 });
+      console.log('decorate: oji +1');
+    }),
+  );
+  document.getElementById('action-play')?.addEventListener(
+    'click',
+    ensureSingleAction(() => {
+      adjustScores({ charm: 1, oji: 1 });
+      console.log('action: charm +1, oji +1');
+    }),
+  );
+  document.getElementById('action-skip')?.addEventListener(
+    'click',
+    ensureSingleAction(() => {
+      console.log('skip: no change');
+    }),
+  );
+
+  // モック向け: console から window.mockNextTurn() でボタンを再有効化
+  window.mockNextTurn = () => {
+    unlockActions();
+    console.log('[mock] 次のターンへ（ロック解除）');
+  };
 }
 
 init();
