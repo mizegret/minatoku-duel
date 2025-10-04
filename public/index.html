@@ -1,11 +1,49 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
+<html lang="ja">
+  <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>minatoku-duel</title>
-</head>
-<body>
-    <h1>minatoku-duel</h1>
-</body>
+    <title>港区デュエル</title>
+    <script src="/app.js" type="module"></script>
+  </head>
+  <body>
+    <main>
+      <section id="screen-lobby">
+        <h1>港区デュエル</h1>
+        <button id="create-room">新しい部屋を作る</button>
+        <p class="note">Room ID は a–z, 0–9, - の 4〜32 文字。URL を共有して参加。</p>
+      </section>
+
+      <section id="screen-room" hidden>
+        <header>
+          <h1>港区デュエル</h1>
+          <p>Room: <span id="room-id"></span></p>
+          <button id="copy-room-link">招待リンクをコピー</button>
+        </header>
+        <div class="board">
+          <div class="player player-self">
+            <h2>あなた</h2>
+            <div class="hand" id="hand-self"></div>
+            <div class="field" id="field-self"></div>
+          </div>
+          <div class="player player-opponent">
+            <h2>相手</h2>
+            <div class="hand" id="hand-opponent"></div>
+            <div class="field" id="field-opponent"></div>
+          </div>
+        </div>
+        <section class="actions">
+          <button id="action-summon">召喚</button>
+          <button id="action-decorate">装飾</button>
+          <button id="action-play">アクション</button>
+          <button id="action-skip">スキップ</button>
+        </section>
+        <section class="scores">
+          <div>魅力: <span id="score-charm">0</span></div>
+          <div>オジ好感度: <span id="score-oji">0</span></div>
+          <div>合計: <span id="score-total">0</span></div>
+        </section>
+      </section>
+    </main>
+  </body>
 </html>
