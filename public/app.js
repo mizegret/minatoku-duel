@@ -203,7 +203,13 @@ async function copyRoomLink() {
   }
 }
 
-function handleInitialRoute() {
+function handleInitialRoute(stateOverride) {
+  const roomIdFromState = stateOverride?.roomId;
+  if (roomIdFromState && ROOM_ID_PATTERN.test(roomIdFromState)) {
+    showRoom(roomIdFromState);
+    return;
+  }
+
   const roomMatch = location.pathname.match(/^\/room\/([a-z0-9-]{1,32})\/?$/);
   if (!roomMatch) {
     showLobby();
@@ -228,12 +234,27 @@ function ensureSingleAction(callback) {
   };
 }
 
-function init() {
-  handleInitialRoute();
+function navigateToRoom(roomId) {
+  history.pushState({ roomId }, '', `/room/${roomId}`);
+  showRoom(roomId);
+}
 
-  createButton?.addEventListener('click', () => {
+function navigateToLobby(withNotice) {
+  history.pushState({}, '', '/');
+  showLobby(withNotice);
+}
+
+function init() {
+  handleInitialRoute(history.state);
+
+  window.addEventListener('popstate', (event) => {
+    handleInitialRoute(event.state);
+  });
+
+  createButton?.addEventListener('click', (event) => {
+    event.preventDefault();
     const id = generateRoomId();
-    location.href = `/room/${id}`;
+    navigateToRoom(id);
   });
 
   copyButton?.addEventListener('click', copyRoomLink);
@@ -270,6 +291,12 @@ function init() {
   window.mockNextTurn = () => {
     unlockActions();
     console.log('[mock] 次のターンへ（ロック解除）');
+  };
+
+  // モック向け: ロビーに戻るヘルパー
+  window.mockToLobby = () => {
+    navigateToLobby();
+    console.log('[mock] ロビーへ戻りました');
   };
 }
 
