@@ -212,7 +212,10 @@ function watchConnection() {
   if (!ablyClient || hasConnectionWatcher) return;
   hasConnectionWatcher = true;
   ablyClient.connection.on('statechange', (change) => {
-    logAction('network', `接続状態: ${change.previous} → ${change.current}`);
+    const reason = change.reason
+      ? ` (reason: ${change.reason.code ?? ''} ${change.reason.message ?? ''})`
+      : '';
+    logAction('network', `接続状態: ${change.previous} → ${change.current}${reason}`);
   });
 }
 
@@ -222,7 +225,8 @@ function watchChannel(channel) {
   channel.on('attached', () => logAction('network', 'チャンネル attached (イベント)'));
   channel.on('detached', () => logAction('network', 'チャンネル detached (イベント)'));
   channel.on('failed', (err) => {
-    logAction('network', `チャンネル failed (イベント): ${err?.code ?? 'unknown'}`);
+    const reason = err ? ` (code: ${err.code ?? ''} message: ${err.message ?? ''})` : '';
+    logAction('network', `チャンネル failed (イベント)${reason}`);
   });
   channel.on('update', () => logAction('network', 'チャンネル update (イベント)'));
 }
@@ -261,7 +265,7 @@ function connectRealtime(roomId) {
       ablyClient.connection.once('connected', () => {
         logAction('network', 'Ably接続完了');
         if (state.roomId) {
-          publishJoin(state.roomId);
+        void publishJoin(state.roomId);
         }
       });
     } catch (error) {
@@ -281,12 +285,7 @@ function connectRealtime(roomId) {
 
   if (!ablyChannel) {
     ablyChannel = ablyClient.channels.get(channelName);
-    ablyChannel.on('attached', () => logAction('network', 'チャンネル attached (イベント)'));
-    ablyChannel.on('detached', () => logAction('network', 'チャンネル detached (イベント)'));
-    ablyChannel.on('failed', (err) => {
-      logAction('network', `チャンネル failed (イベント): ${err?.code ?? 'unknown'}`);
-    });
-    ablyChannel.on('update', () => logAction('network', 'チャンネル update (イベント)'));
+    watchChannel(ablyChannel);
     logAction('network', `チャンネル接続要求: ${channelName}`);
     ablyChannel.attach((err) => {
       if (err) {
@@ -299,17 +298,19 @@ function connectRealtime(roomId) {
       }
       logAction('network', `チャンネル接続完了: ${channelName}`);
       if (ablyClient.connection.state === 'connected') {
-        publishJoin(roomId);
+        void publishJoin(roomId);
       } else {
-        ablyClient.connection.once('connected', () => publishJoin(roomId));
+        ablyClient.connection.once('connected', () => {
+          void publishJoin(roomId);
+        });
       }
     });
   } else if (ablyClient.connection.state === 'connected' && lastJoinedRoomId !== roomId) {
-    publishJoin(roomId);
+    void publishJoin(roomId);
   }
 }
 
-function publishJoin(roomId) {
+async function publishJoin(roomId) {
   if (!ablyChannel || !ablyClient) return;
   if (lastJoinedRoomId === roomId) return;
   const payload = {
@@ -317,19 +318,19 @@ function publishJoin(roomId) {
     roomId,
     joinedAt: Date.now(),
   };
-  logAction('network', 'join を送信中…');
-  ablyChannel.publish('join', payload, (err) => {
-    if (err) {
-      console.warn('[ably] join publish failed', err);
-      const message = err.code === 40160
-        ? 'join の送信に必要な権限が不足しています'
-        : 'join の送信に失敗しました';
-      logAction('network', message);
-      return;
-    }
+
+  try {
+    logAction('network', 'join を送信中…');
+    await ablyChannel.publish('join', payload);
     lastJoinedRoomId = roomId;
     logAction('network', 'join を送信しました');
-  });
+  } catch (err) {
+    console.warn('[ably] join publish failed', err);
+    const message = err?.code === 40160
+      ? 'join の送信に必要な権限が不足しています'
+      : 'join の送信に失敗しました';
+    logAction('network', message);
+  }
 }
 
 function detachRealtime() {
