@@ -148,6 +148,7 @@ function showRoom(roomId) {
   }
   setNotice('');
   prepareRoom();
+  setNotice('他のプレイヤーを待機中…');
   connectRealtime(roomId);
   lobbySection?.setAttribute('hidden', '');
   roomSection?.removeAttribute('hidden');
@@ -262,7 +263,7 @@ function handleJoinMessage(message) {
 function handleStartMessage(message) {
   const data = message?.data ?? {};
   logAction('event', `start 受信: host=${data.hostId ?? 'unknown'} members=${Array.isArray(data.members) ? data.members.length : 0}`);
-  // TODO: initialise local state when start is handled
+  setNotice('ゲームが開始されました。ホストからの盤面更新を待機中…');
 }
 
 function handleMoveMessage(message) {
@@ -280,6 +281,8 @@ function handleStateMessage(message) {
 function applyStateSnapshot(snapshot) {
   // TODO: 後続タスクで UI / gameState を同期させる
   console.debug('[state] snapshot received', snapshot);
+  setNotice('');
+  logAction('state', '盤面スナップショットを適用（未実装）');
 }
 
 function connectRealtime(roomId) {
@@ -550,7 +553,7 @@ function loadMockGameState() {
   state.opponent = structuredClone(MOCK_OPPONENT);
 }
 
-function prepareRoom({ useMock = true } = {}) {
+function prepareRoom({ useMock = false } = {}) {
   resetScores();
   resetPlayers();
   resetTurn();
