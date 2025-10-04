@@ -19,7 +19,7 @@ const actionButtons = [
 ];
 
 const ROOM_ID_PATTERN = /^[a-z0-9-]{8}$/;
-const ENV_ENDPOINT = '/__/env.json';
+const ENV_ENDPOINT = '/env';
 const IS_LOCAL = ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(location.hostname);
 
 const MOCK_SELF = {
@@ -92,7 +92,9 @@ async function loadEnvironment() {
       console.info('[env] loaded from env.local.json', Object.keys(env));
       return;
     } catch (error) {
-      console.warn('[env] local env.local.json not available', error);
+      console.warn('[env] failed to load env.local.json', error);
+      state.env = null;
+      return;
     }
   }
 
