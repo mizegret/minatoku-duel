@@ -11,6 +11,8 @@ const handSelf = document.getElementById('hand-self');
 const handOpponent = document.getElementById('hand-opponent');
 const fieldSelf = document.getElementById('field-self');
 const fieldOpponent = document.getElementById('field-opponent');
+const deckSelfCount = document.getElementById('deck-self-count');
+const deckOpponentCount = document.getElementById('deck-opponent-count');
 const turnLabel = document.getElementById('turn-indicator');
 const actionLog = document.getElementById('action-log');
 const actionButtons = [
@@ -85,6 +87,7 @@ const state = {
   // move 実装向け（最小）
   members: [], // 参加クライアントIDの簡易一覧
   hostGame: null, // Host のみ保持する権威側のスコア・ターン
+  cards: null,
 };
 
 function generateRoomId() {
@@ -118,6 +121,29 @@ async function loadEnvironment() {
   }
 
   state.env = null;
+}
+
+async function loadCards() {
+  try {
+    const data = await fetchJson('/cards.json');
+    state.cards = {
+      humans: Array.isArray(data?.humans) ? data.humans : [],
+      decorations: Array.isArray(data?.decorations) ? data.decorations : [],
+      actions: Array.isArray(data?.actions) ? data.actions : [],
+    };
+    console.info('[cards] loaded', {
+      humans: state.cards.humans.length,
+      decorations: state.cards.decorations.length,
+      actions: state.cards.actions.length,
+    });
+  } catch (e) {
+    console.warn('[cards] failed to load, using defaults', e);
+    state.cards = {
+      humans: [{ id: 'human-default', name: '港区女子（仮）' }],
+      decorations: [{ id: 'deco-default', name: 'シャンパン（仮）' }],
+      actions: [{ id: 'act-default', name: 'アクション（仮）' }],
+    };
+  }
 }
 
 async function fetchJson(url) {
@@ -192,6 +218,11 @@ function updateScores({ charm, oji, total }) {
 function updateTurnIndicator() {
   if (!turnLabel) return;
   turnLabel.textContent = `ターン ${state.turn} / ${TOTAL_TURNS}`;
+}
+
+function updateDeckCounts(selfCount = 0, oppCount = 0) {
+  if (deckSelfCount) deckSelfCount.textContent = String(selfCount);
+  if (deckOpponentCount) deckOpponentCount.textContent = String(oppCount);
 }
 
 function pushLog(entry) {
@@ -346,6 +377,25 @@ function handleMoveMessage(message) {
   let phase = 'in-round';
   const half = typeof game.half === 'number' ? game.half : 0; // 0:前半, 1:後半
 
+  // 盤面の最小更新（召喚/装飾）
+  if (!game.fieldById) game.fieldById = {};
+  const field = game.fieldById[actorId] ?? { humans: [] };
+  if (data.action === 'summon') {
+    const humanCard = pickCard('humans');
+    field.humans.push({ id: humanCard.id, name: humanCard.name, decorations: [] });
+  } else if (data.action === 'decorate') {
+    if (field.humans.length > 0) {
+      const first = field.humans[0];
+      const decorations = first.decorations ?? [];
+      if (decorations.length < MAX_DECORATIONS_PER_HUMAN) {
+        const deco = pickCard('decorations');
+        decorations.push({ id: deco.id, name: deco.name });
+        first.decorations = decorations;
+      }
+    }
+  }
+  game.fieldById[actorId] = field;
+
   if (half === 0) {
     // 前半手が終了 → 手番を相手へ、ラウンド据え置き
     game.half = 1;
@@ -371,8 +421,9 @@ function handleMoveMessage(message) {
   const players = members.map((id) => ({
     clientId: id,
     hand: [],
-    field: { humans: [] },
+    field: game.fieldById?.[id] ?? { humans: [] },
     scores: game.scoresById[id] ?? { charm: 0, oji: 0, total: 0 },
+    deckCount: Array.isArray(game.decksById?.[id]) ? game.decksById[id].length : 0,
   }));
 
   void publishState({ round, turnOwner: game.turnOwner, players, phase, roundHalf: game.half });
@@ -407,6 +458,11 @@ function applyStateSnapshot(snapshot) {
     : ((myTurn || roundHalf === 1) ? (round || 1) : Math.max(1, (round || 1) - 1));
   state.turn = displayRound;
   updateTurnIndicator();
+
+    // 山札枚数（あれば表示）
+    const selfDeck = Number.isFinite(me?.deckCount) ? me.deckCount : 0;
+    const oppDeck = Number.isFinite(opp?.deckCount) ? opp.deckCount : 0;
+    updateDeckCounts(selfDeck, oppDeck);
 
     // スコアは自分のものを優先して表示（なければ 0 ）
     const myScores = me?.scores ?? { charm: 0, oji: 0, total: undefined };
@@ -825,6 +881,18 @@ function getMembers() {
   return uniq;
 }
 
+// --- minimal card helpers (Host側で使用) ---
+function pickCard(type) {
+  const empty = { id: `${type}-none`, name: 'カード' };
+  const col = state.cards?.[type];
+  if (!Array.isArray(col) || col.length === 0) return empty;
+  if (!state.hostGame) return col[0];
+  if (!state.hostGame._seq) state.hostGame._seq = { humans: 0, decorations: 0, actions: 0 };
+  const idx = state.hostGame._seq[type] % col.length;
+  state.hostGame._seq[type] = state.hostGame._seq[type] + 1;
+  return col[idx];
+}
+
 function navigateToRoom(roomId) {
   history.pushState({ roomId }, '', `/room/${roomId}`);
   showRoom(roomId);
@@ -838,6 +906,7 @@ function navigateToLobby(withNotice) {
 
 async function init() {
   await loadEnvironment();
+  await loadCards();
 
   handleInitialRoute(history.state);
 
@@ -900,9 +969,57 @@ function ensureStarted() {
   if (!ablyClient || ablyClient.connection?.state !== 'connected') return;
   if (!ablyChannel) return;
   if (getMembers().length < 2) return; // 2人揃ってから開始
-  // start → 初期state
+  // デッキ配布（MVP固定: human5 / deco10 / action5）
+  const members = getMembers();
+  const hostId = getClientId();
+  const game = (state.hostGame = {
+    round: 1,
+    turnOwner: hostId,
+    roundStarter: hostId,
+    half: 0,
+    scoresById: {},
+    fieldById: {},
+    decksById: {},
+    handsById: {},
+  });
+
+  function buildDeck() {
+    const deck = [];
+    for (let i = 0; i < 5; i += 1) {
+      const c = pickCard('humans');
+      deck.push({ id: c.id, name: c.name, type: 'human' });
+    }
+    for (let i = 0; i < 10; i += 1) {
+      const c = pickCard('decorations');
+      deck.push({ id: c.id, name: c.name, type: 'decoration' });
+    }
+    for (let i = 0; i < 5; i += 1) {
+      const c = pickCard('actions');
+      deck.push({ id: c.id, name: c.name, type: 'action' });
+    }
+    return deck;
+  }
+
+  // 各プレイヤーへ配布（簡易：シャッフルなし、上から5枚を手札）
+  members.forEach((id) => {
+    const deck = buildDeck();
+    const hand = deck.splice(0, 5);
+    game.decksById[id] = deck;
+    game.handsById[id] = hand;
+    game.fieldById[id] = { humans: [] };
+    game.scoresById[id] = { charm: 0, oji: 0, total: 0 };
+  });
+
+  // start → 初期state（playersに手札・空の場・初期スコアを含める）
   void publishStart();
-  void publishState({ round: 1, phase: 'in-round', turnOwner: getClientId(), roundHalf: 0 });
+  const players = members.map((id) => ({
+    clientId: id,
+    hand: game.handsById[id] ?? [],
+    field: game.fieldById[id] ?? { humans: [] },
+    scores: game.scoresById[id] ?? { charm: 0, oji: 0, total: 0 },
+    deckCount: Array.isArray(game.decksById?.[id]) ? game.decksById[id].length : 0,
+  }));
+  void publishState({ round: 1, phase: 'in-round', turnOwner: hostId, roundHalf: 0, players });
   state.started = true;
 }
 

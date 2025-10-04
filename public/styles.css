@@ -86,6 +86,8 @@ header p { margin: 0; }
 
 .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
 .scores { display: flex; gap: 18px; flex-wrap: wrap; font-weight: 600; }
+.deck { font-size: 0.9rem; color: var(--muted); margin-bottom: 8px; }
+.deck-count { display: inline-block; min-width: 24px; text-align: center; font-weight: 700; color: var(--fg); background: rgba(15,23,42,.06); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; }
 
 .log {
   background: rgba(255, 255, 255, 0.72);
