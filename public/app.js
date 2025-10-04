@@ -12,6 +12,7 @@ const handOpponent = document.getElementById('hand-opponent');
 const fieldSelf = document.getElementById('field-self');
 const fieldOpponent = document.getElementById('field-opponent');
 const turnLabel = document.getElementById('turn-indicator');
+const actionLog = document.getElementById('action-log');
 const actionButtons = [
   document.getElementById('action-summon'),
   document.getElementById('action-decorate'),
@@ -69,6 +70,7 @@ const state = {
   actionLocked: false,
   env: null,
   turn: 1,
+  log: [],
 };
 
 function generateRoomId() {
@@ -152,6 +154,11 @@ function resetTurn() {
   updateTurnIndicator();
 }
 
+function resetLog() {
+  state.log = [];
+  renderLog();
+}
+
 function updateScores({ charm, oji, total }) {
   if (scoreCharm) scoreCharm.textContent = String(charm ?? 0);
   if (scoreOji) scoreOji.textContent = String(oji ?? 0);
@@ -162,6 +169,32 @@ function updateScores({ charm, oji, total }) {
 function updateTurnIndicator() {
   if (!turnLabel) return;
   turnLabel.textContent = `ターン ${state.turn} / ${TOTAL_TURNS}`;
+}
+
+function pushLog(entry) {
+  state.log.unshift(entry);
+  if (state.log.length > 12) {
+    state.log.length = 12;
+  }
+  renderLog();
+}
+
+function renderLog() {
+  if (!actionLog) return;
+  if (state.log.length === 0) {
+    actionLog.innerHTML = '<div class="log-entry">まだ行動がありません</div>';
+    return;
+  }
+
+  actionLog.innerHTML = state.log
+    .map(({ type, message, at }) => {
+      const time = new Date(at).toLocaleTimeString('ja-JP', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      return `<div class="log-entry action-${type}"><span>${message}</span><time>${time}</time></div>`;
+    })
+    .join('');
 }
 
 function advanceTurn() {
@@ -237,6 +270,7 @@ function prepareRoom({ useMock = true } = {}) {
   resetScores();
   resetPlayers();
   resetTurn();
+  resetLog();
   if (useMock) {
     loadMockGameState();
   }
@@ -305,6 +339,17 @@ function ensureSingleAction(callback) {
   };
 }
 
+function logAction(type, message) {
+  pushLog({ type, message, at: Date.now() });
+}
+
+function logButtonAction(type, message, callback) {
+  return ensureSingleAction(() => {
+    callback();
+    logAction(type, message);
+  });
+}
+
 function navigateToRoom(roomId) {
   history.pushState({ roomId }, '', `/room/${roomId}`);
   showRoom(roomId);
@@ -334,28 +379,28 @@ async function init() {
 
   document.getElementById('action-summon')?.addEventListener(
     'click',
-    ensureSingleAction(() => {
+    logButtonAction('summon', '召喚：魅力 +1', () => {
       adjustScores({ charm: 1 });
       console.log('summon: charm +1');
     }),
   );
   document.getElementById('action-decorate')?.addEventListener(
     'click',
-    ensureSingleAction(() => {
+    logButtonAction('decorate', '装飾：好感度 +1', () => {
       adjustScores({ oji: 1 });
       console.log('decorate: oji +1');
     }),
   );
   document.getElementById('action-play')?.addEventListener(
     'click',
-    ensureSingleAction(() => {
+    logButtonAction('play', 'アクション：魅力 +1 / 好感度 +1', () => {
       adjustScores({ charm: 1, oji: 1 });
       console.log('action: charm +1, oji +1');
     }),
   );
   document.getElementById('action-skip')?.addEventListener(
     'click',
-    ensureSingleAction(() => {
+    logButtonAction('skip', 'スキップ', () => {
       console.log('skip: no change');
     }),
   );

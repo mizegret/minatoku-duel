@@ -198,6 +198,73 @@
         font-weight: 600;
       }
 
+      .log {
+        background: rgba(255, 255, 255, 0.72);
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        padding: 12px;
+        min-height: 72px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      .log-entry {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .log-entry::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent);
+        display: inline-block;
+      }
+
+      .log-entry.action-summon::before {
+        background: #10b981;
+      }
+
+      .log-entry.action-decorate::before {
+        background: #facc15;
+      }
+
+      .log-entry.action-play::before {
+        background: #f97316;
+      }
+
+      .log-entry.action-skip::before {
+        background: #94a3b8;
+      }
+
+      .log-entry time {
+        font-size: 0.8rem;
+        color: rgba(15, 23, 42, 0.45);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .log {
+          background: rgba(15, 32, 40, 0.65);
+          color: rgba(230, 251, 255, 0.78);
+        }
+
+        .log-entry time {
+          color: rgba(230, 251, 255, 0.5);
+        }
+      }
+
+      .scores {
+        display: flex;
+        gap: 18px;
+        flex-wrap: wrap;
+        font-weight: 600;
+      }
+
       @media (prefers-color-scheme: dark) {
         .card {
           background: rgba(10, 32, 40, 0.95);
@@ -270,6 +337,8 @@
           <div>オジ好感度: <span id="score-oji">0</span></div>
           <div>合計: <span id="score-total">0</span></div>
         </section>
+
+        <section class="log" id="action-log"></section>
       </section>
     </main>
   </body>
