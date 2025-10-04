@@ -19,7 +19,6 @@ const actionButtons = [
   document.getElementById('action-play'),
   document.getElementById('action-skip'),
 ];
-const startButton = document.getElementById('action-start');
 
 const ROOM_ID_PATTERN = /^[a-z0-9-]{8}$/;
 const ENV_ENDPOINT = '/env';
@@ -279,6 +278,7 @@ function handleJoinMessage(message) {
   const data = message?.data ?? {};
   logAction('event', `join 受信: ${data.clientId ?? 'unknown'}`);
   if (data.clientId) addMember(data.clientId);
+  ensureStarted();
 }
 
 function handleStartMessage(message) {
@@ -857,21 +857,7 @@ async function init() {
 
   copyButton?.addEventListener('click', copyRoomLink);
 
-  // ゲーム開始（Host のみが押せる想定。UI側でも非表示）
-  startButton?.addEventListener('click', async () => {
-    if (!ablyClient || !ablyChannel) return;
-    const hostId = getClientId();
-    if (!hostId) {
-      logAction('network', 'clientId 未確定のため開始できません');
-      return;
-    }
-    startButton.disabled = true;
-    state.started = true;
-    updateStartUI();
-    // start → 初期state を順に送信
-    await publishStart();
-    await publishState({ round: 1, phase: 'in-round', turnOwner: hostId, roundHalf: 0 });
-  });
+  // Startボタンは廃止（自動開始）
 
   document.getElementById('action-summon')?.addEventListener(
     'click',
@@ -906,16 +892,6 @@ function updateStartUI() {
     if (state.isHost) copyButton.removeAttribute('hidden');
     else copyButton.setAttribute('hidden', '');
   }
-  // Start ボタンが存在しないならここで終わり
-  if (!startButton) return;
-  if (state.started) {
-    startButton.setAttribute('hidden', '');
-    return;
-  }
-  if (state.isHost) startButton.removeAttribute('hidden');
-  else startButton.setAttribute('hidden', '');
-  const connected = !!ablyClient && ablyClient.connection?.state === 'connected';
-  startButton.disabled = !connected;
 }
 
 function ensureStarted() {
@@ -923,6 +899,7 @@ function ensureStarted() {
   if (!state.isHost) return;
   if (!ablyClient || ablyClient.connection?.state !== 'connected') return;
   if (!ablyChannel) return;
+  if (getMembers().length < 2) return; // 2人揃ってから開始
   // start → 初期state
   void publishStart();
   void publishState({ round: 1, phase: 'in-round', turnOwner: getClientId(), roundHalf: 0 });
