@@ -52,15 +52,28 @@ function showRoom(roomId) {
     roomIdLabel.textContent = roomId;
   }
   setNotice('');
+  resetScores();
   updateScores(state.scores);
   lobbySection?.setAttribute('hidden', '');
   roomSection?.removeAttribute('hidden');
 }
 
+function resetScores() {
+  state.scores = { charm: 0, oji: 0, total: 0 };
+}
+
 function updateScores({ charm, oji, total }) {
   if (scoreCharm) scoreCharm.textContent = String(charm ?? 0);
   if (scoreOji) scoreOji.textContent = String(oji ?? 0);
-  if (scoreTotal) scoreTotal.textContent = String(total ?? (charm ?? 0) + (oji ?? 0));
+  const fallbackTotal = (charm ?? 0) + (oji ?? 0);
+  if (scoreTotal) scoreTotal.textContent = String(total ?? fallbackTotal);
+}
+
+function adjustScores({ charm = 0, oji = 0 } = {}) {
+  state.scores.charm += charm;
+  state.scores.oji += oji;
+  state.scores.total = state.scores.charm + state.scores.oji;
+  updateScores(state.scores);
 }
 
 async function copyRoomLink() {
@@ -100,16 +113,19 @@ function init() {
   copyButton?.addEventListener('click', copyRoomLink);
 
   document.getElementById('action-summon')?.addEventListener('click', () => {
-    console.log('summon clicked');
+    adjustScores({ charm: 1 });
+    console.log('summon: charm +1');
   });
   document.getElementById('action-decorate')?.addEventListener('click', () => {
-    console.log('decorate clicked');
+    adjustScores({ oji: 1 });
+    console.log('decorate: oji +1');
   });
   document.getElementById('action-play')?.addEventListener('click', () => {
-    console.log('action clicked');
+    adjustScores({ charm: 1, oji: 1 });
+    console.log('action: charm +1, oji +1');
   });
   document.getElementById('action-skip')?.addEventListener('click', () => {
-    console.log('skip clicked');
+    console.log('skip: no change');
   });
 }
 
