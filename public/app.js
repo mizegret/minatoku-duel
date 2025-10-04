@@ -324,14 +324,18 @@ function handleStartMessage(message) {
   state.hostId = data.hostId ?? null;
   state.isHost = !!state.hostId && state.hostId === getClientId();
   state.started = true;
-  // Host 側の最小ゲーム状態を初期化
-  if (state.isHost) {
+  // Host 側では、既に ensureStarted() で配布済みの hands/decks を保持する。
+  // ここでの再初期化は行わない（上書きすると手札が消える）。
+  if (state.isHost && !state.hostGame) {
     state.hostGame = {
       round: 1,
       turnOwner: getClientId(),
       roundStarter: getClientId(),
       half: 0,
       scoresById: {},
+      fieldById: {},
+      decksById: {},
+      handsById: {},
     };
   }
   updateStartUI();
@@ -387,8 +391,30 @@ function handleMoveMessage(message) {
   if (!game.fieldById) game.fieldById = {};
   const field = game.fieldById[actorId] ?? { humans: [] };
   if (data.action === 'summon') {
-    const humanCard = pickCard('humans');
-    field.humans.push({ id: humanCard.id, name: humanCard.name, decorations: [] });
+    // 手札から対象カードIDのhumanを取り出して場へ（ID優先、なければ最初のhuman）
+    const hand = Array.isArray(game.handsById?.[actorId]) ? game.handsById[actorId] : [];
+    console.debug('[host-move] summon before', { actorId, hand: hand.map((c)=>c.id), cardId: data.cardId });
+    let idx = -1;
+    if (data.cardId) {
+      idx = hand.findIndex((c) => c?.id === data.cardId);
+    }
+    if (idx < 0) {
+      idx = hand.findIndex((c) => c?.type === 'human');
+    }
+    if (idx >= 0) {
+      const humanCard = hand.splice(idx, 1)[0];
+      if (humanCard?.type === 'human') {
+        field.humans.push({ id: humanCard.id, name: humanCard.name, decorations: [] });
+        logAction('event', `summon: ${humanCard.name}`);
+        console.debug('[host-move] summon after', { actorId, hand: hand.map((c)=>c.id), fieldCount: field.humans.length });
+      } else {
+        // human以外を誤って指定した場合は手札へ戻す
+        hand.splice(idx, 0, humanCard);
+        logAction('event', 'summon: human以外を選択のため無視');
+      }
+    } else {
+      logAction('event', 'summon: 手札に一致カードなし');
+    }
   } else if (data.action === 'decorate') {
     if (field.humans.length > 0) {
       const first = field.humans[0];
@@ -658,8 +684,6 @@ async function publishMove(move = {}) {
   const payload = {
     clientId: getClientId(),
     round: state.turn,
-    action: 'summon',
-    cardId: 'card-mock',
     ...move,
   };
 
@@ -743,6 +767,9 @@ function renderHand(target, cards) {
     const cardEl = document.createElement('div');
     cardEl.className = `card card-${card.type}`;
     cardEl.textContent = card.name;
+    cardEl.dataset.cardId = card.id;
+    cardEl.dataset.cardType = card.type || '';
+    cardEl.dataset.cardName = card.name || '';
     target.appendChild(cardEl);
   });
 }
@@ -969,6 +996,26 @@ async function init() {
   });
 
   copyButton?.addEventListener('click', copyRoomLink);
+
+  // 手札クリック（自分の手札のみ）
+  handSelf?.addEventListener('click', (ev) => {
+    const target = ev.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (!target.classList.contains('card')) return;
+    const cardId = target.dataset.cardId;
+    const cardType = target.dataset.cardType;
+    const cardName = target.dataset.cardName || '';
+    if (!cardId) return;
+    // 最小実装: human はクリックで召喚（確認付き）
+    if (cardType === 'human') {
+      const ok = window.confirm(`このカードを召喚しますか？\n${cardName}`);
+      if (!ok) return;
+      const action = logButtonAction('summon', `召喚：${cardName}`, () => {
+        void publishMove({ action: 'summon', cardId });
+      });
+      action();
+    }
+  });
 
   // Startボタンは廃止（自動開始）
 

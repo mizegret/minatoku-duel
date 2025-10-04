@@ -77,6 +77,8 @@ header p { margin: 0; }
 .player h2 { margin: 0; font-size: 1.1rem; }
 .hand, .field { display: flex; flex-wrap: wrap; gap: 8px; }
 .card { min-width: 120px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: #ffffff; box-shadow: 0 4px 14px var(--card-shadow); font-size: 0.95rem; }
+.player-self .hand .card { cursor: pointer; transition: transform .1s ease, box-shadow .1s ease, border-color .1s ease; }
+.player-self .hand .card:hover { transform: translateY(-2px); box-shadow: 0 12px 22px var(--card-shadow); border-color: var(--accent); }
 
 .field-human { flex: 1 1 160px; border: 1px dashed var(--border); border-radius: 16px; padding: 14px; background: rgba(57, 238, 240, 0.12); display: flex; flex-direction: column; gap: 10px; }
 .field-human-card { background: #ffffff; border-radius: 12px; border: 1px solid var(--border); padding: 12px; font-weight: 600; box-shadow: 0 4px 14px var(--card-shadow); min-width: 130px; }
