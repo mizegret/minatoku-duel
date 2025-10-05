@@ -1,6 +1,7 @@
 import { TOTAL_TURNS, MAX_DECORATIONS_PER_HUMAN, HAND_SIZE, ACTIONS } from '../constants.js';
 import { buildPlayers } from '../utils/players.js';
 import { buildDeck, drawCard, popFirstByIdOrType } from '../utils/deck.js';
+import { buildCardIndex, scoreField } from '../utils/score.js';
 
 // Step3: Host-side game authority logic
 // - ensureStarted: initialize decks/hands/fields/scores and broadcast start+state
@@ -23,6 +24,8 @@ export function ensureStarted(ctx) {
     fieldById: {},
     decksById: {},
     handsById: {},
+    _actionDeltasById: {}, // M3: accumulate play() deltas for verification only
+    _cardsById: buildCardIndex(state.cardsByType),
   });
 
   // distribute decks/hands (MVP fixed composition)
@@ -152,6 +155,11 @@ export function handleMoveMessage(message, ctx) {
       lastAction.cardName = act.name;
       // Note: existing behavior adds +1 to both charm and oji here
       applyScoreDelta(scores, { charm: 1, oji: 1 });
+      // M3: accumulate for verification (clamp to >=0 progressively like runtime)
+      const ensureDelta = (id) => (game._actionDeltasById[id] ||= { charm: 0, oji: 0 });
+      const dSelf = ensureDelta(actorId);
+      dSelf.charm = Math.max(0, dSelf.charm + 1);
+      dSelf.oji = Math.max(0, dSelf.oji + 1);
       // apply card effects (may update actor or opponent)
       let dCharmSum = 0;
       let dOjiSum = 0;
@@ -165,9 +173,14 @@ export function handleMoveMessage(message, ctx) {
         if (e.stat === 'charm') {
           tScores.charm = Math.max(0, tScores.charm + delta);
           if (targetId === actorId) dCharmSum += delta;
+          // M3 aggregate
+          const d = ensureDelta(targetId);
+          d.charm = Math.max(0, d.charm + delta);
         } else if (e.stat === 'oji') {
           tScores.oji = Math.max(0, tScores.oji + delta);
           if (targetId === actorId) dOjiSum += delta;
+          const d = ensureDelta(targetId);
+          d.oji = Math.max(0, d.oji + delta);
         }
         tScores.total = tScores.charm + tScores.oji;
         game.scoresById[targetId] = tScores;
@@ -215,5 +228,23 @@ export function handleMoveMessage(message, ctx) {
   game.scoresById[actorId] = scores;
 
   const players = buildPlayers(game, members2);
+  // M3: verify aggregated scores (field + action deltas) vs runtime scores
+  try {
+    const byId = game._cardsById || buildCardIndex(state.cardsByType);
+    for (const pid of members2) {
+      const field = game.fieldById?.[pid] ?? { humans: [] };
+      const fieldScore = scoreField(field, byId);
+      const d = game._actionDeltasById?.[pid] ?? { charm: 0, oji: 0 };
+      const agg = { charm: fieldScore.charm + d.charm, oji: fieldScore.oji + d.oji };
+      agg.total = agg.charm + agg.oji;
+      const live = game.scoresById?.[pid] ?? { charm: 0, oji: 0, total: 0 };
+      if (agg.charm !== live.charm || agg.oji !== live.oji || agg.total !== live.total) {
+        // warn only (do not use logAction to avoid UI log change)
+        console.warn('[score][m3-verify] mismatch', { pid, agg, live, fieldScore, deltas: d });
+      }
+    }
+  } catch (err) {
+    console.warn('[score][m3-verify] error', err);
+  }
   publishState({ round, turnOwner: game.turnOwner, players, phase, roundHalf: game.half, lastAction });
 }
