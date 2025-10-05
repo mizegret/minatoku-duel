@@ -3,6 +3,7 @@ import { TOTAL_TURNS, ABLY_CHANNEL_PREFIX } from './js/constants.js';
 import { ensureStarted as hostEnsureStarted, handleMoveMessage as hostHandleMoveMessage } from './js/game/host.js';
 import * as UI from './js/ui/render.js';
 import { bindInputs } from './js/ui/inputs.js';
+import * as Net from './js/net/ably.js';
 
 const lobbySection = document.getElementById('screen-lobby');
 const roomSection = document.getElementById('screen-room');
@@ -30,11 +31,7 @@ const ENV_ENDPOINT = '/env';
 const IS_LOCAL = ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(location.hostname);
 // moved to js/constants.js
 
-let ablyClient = null;
-let ablyChannel = null;
-let lastJoinedRoomId = null;
-let hasConnectionWatcher = false;
-const subscribedMessageChannels = new Set();
+// Networking is handled inside Net (see js/net/ably.js)
 
 const state = {
   roomId: null,
@@ -140,9 +137,7 @@ async function fetchJson(url) {
   return res.json();
 }
 
-function hasRealtimeSupport() {
-  return typeof Ably !== 'undefined' && typeof Ably.Realtime === 'function';
-}
+// hasRealtimeSupport is provided by Net
 
 function showLobby(withNotice) {
   lobbySection?.removeAttribute('hidden');
@@ -202,40 +197,11 @@ function pushLog(entry) {
 
 // moved to UI: renderLog
 
-function watchConnection() {
-  if (!ablyClient || hasConnectionWatcher) return;
-  hasConnectionWatcher = true;
-  ablyClient.connection.on('statechange', (change) => {
-    const reason = change.reason
-      ? ` (reason: ${change.reason.code ?? ''} ${change.reason.message ?? ''})`
-      : '';
-    logAction('network', `接続状態: ${change.previous} → ${change.current}${reason}`);
-    UI.updateStartUI(state.isHost);
-  });
-  // 自端末の clientId をメンバーに追加（connected 時）
-  ablyClient.connection.once('connected', () => {
-    const id = getClientId();
-    if (id) addMember(id);
-    ensureStarted();
-  });
-}
+// connection watcher lives in Net.init/connect
 
 // channel-level verbose watchersは削除（最小ログ運用）
 
-function subscribeChannelMessages(channel) {
-  if (!channel || subscribedMessageChannels.has(channel.name)) return;
-  channel.subscribe('join', handleJoinMessage);
-  channel.subscribe('start', handleStartMessage);
-  channel.subscribe('move', handleMoveMessage);
-  channel.subscribe('state', handleStateMessage);
-  subscribedMessageChannels.add(channel.name);
-}
-
-function unsubscribeChannelMessages(channel) {
-  if (!channel || !subscribedMessageChannels.has(channel.name)) return;
-  channel.unsubscribe();
-  subscribedMessageChannels.delete(channel.name);
-}
+// channel subscriptions are wired in Net.connect
 
 function handleJoinMessage(message) {
   const data = message?.data ?? {};
@@ -399,147 +365,57 @@ function connectRealtime(roomId) {
     logAction('network', 'Ablyキー未設定のため接続をスキップ');
     return;
   }
-  if (!hasRealtimeSupport()) {
-    console.warn('[ably] library not loaded');
-    logAction('network', 'Ablyライブラリが読み込まれていません');
-    return;
-  }
-
-  if (!ablyClient) {
-    try {
-      ablyClient = new Ably.Realtime({
-        key: state.env.ABLY_API_KEY,
-        clientId: `web-${crypto.randomUUID().slice(0, 8)}`,
-        transports: ['web_socket', 'xhr_streaming', 'xhr_polling'],
-      });
-      watchConnection();
-      logAction('network', 'Ably接続中…');
-      ablyClient.connection.on('failed', (err) => {
-        console.warn('[ably] connection failed', err);
-        logAction('network', 'Ably接続に失敗しました');
-      });
-      ablyClient.connection.once('connected', () => {
-        logAction('network', 'Ably接続完了');
-        if (state.roomId) {
-        void publishJoin(state.roomId);
-        }
-      });
-    } catch (error) {
-      console.warn('[ably] initialization error', error);
-      logAction('network', 'Ably初期化に失敗しました');
-      return;
-    }
-  }
-
-  const channelName = `${ABLY_CHANNEL_PREFIX}${roomId}`;
-  if (ablyChannel && ablyChannel.name !== channelName) {
-    unsubscribeChannelMessages(ablyChannel);
-    ablyChannel.detach();
-    ablyChannel = null;
-    lastJoinedRoomId = null;
-  }
-
-  if (!ablyChannel) {
-    ablyChannel = ablyClient.channels.get(channelName);
-    subscribeChannelMessages(ablyChannel);
-    logAction('network', `チャンネル接続要求: ${channelName}`);
-    ablyChannel.attach((err) => {
-      if (err) {
-        console.warn('[ably] channel attach failed', err);
-        const message = err.code === 40160
-          ? 'チャンネルの権限がありません（Cloudflareの権限設定を確認）'
-          : 'チャンネル接続に失敗しました';
-        logAction('network', message);
-        return;
-      }
-      logAction('network', `チャンネル接続完了: ${channelName}`);
+  const c = Net.init({
+    apiKey: state.env.ABLY_API_KEY,
+    logAction,
+    onConnectionStateChange: () => UI.updateStartUI(state.isHost),
+  });
+  if (!c) return;
+  Net.connect({
+    roomId,
+    channelPrefix: ABLY_CHANNEL_PREFIX,
+    logAction,
+    onConnected: () => {
+      const id = getClientId();
+      if (id) addMember(id);
       ensureStarted();
-      if (ablyClient.connection.state === 'connected') {
-        void publishJoin(roomId);
-      } else {
-        ablyClient.connection.once('connected', () => {
-          void publishJoin(roomId);
-        });
-      }
-    });
-  } else if (ablyClient.connection.state === 'connected' && lastJoinedRoomId !== roomId) {
-    void publishJoin(roomId);
-  }
+    },
+    onAttach: () => {
+      ensureStarted();
+      void publishJoin(roomId);
+    },
+    onJoin: handleJoinMessage,
+    onStart: handleStartMessage,
+    onMove: handleMoveMessage,
+    onState: handleStateMessage,
+  });
 }
 
 async function publishJoin(roomId) {
-  if (!ablyChannel || !ablyClient) return;
-  if (lastJoinedRoomId === roomId) return;
-  const payload = {
-    clientId: ablyClient.auth?.clientId ?? null,
-    roomId,
-    joinedAt: Date.now(),
-  };
-
-  try {
-    logAction('network', 'join を送信中…');
-    await ablyChannel.publish('join', payload);
-    lastJoinedRoomId = roomId;
-    logAction('network', 'join を送信しました');
-  } catch (err) {
-    console.warn('[ably] join publish failed', err);
-    const message = err?.code === 40160
-      ? 'join の送信に必要な権限が不足しています'
-      : 'join の送信に失敗しました';
-    logAction('network', message);
-  }
+  await Net.publishJoin({ roomId, logAction });
 }
 
 function getClientId() {
-  return ablyClient?.auth?.clientId ?? null;
+  return Net.getClientId();
 }
 
 async function publishStart(members = []) {
-  if (!ablyChannel || !ablyClient || !state.roomId) return;
+  if (!state.roomId) return;
   const payload = {
     roomId: state.roomId,
     hostId: getClientId(),
     members: members.length ? members : [{ clientId: getClientId() }],
     startedAt: Date.now(),
   };
-
-  try {
-    logAction('network', 'start を送信中…');
-    await ablyChannel.publish('start', payload);
-    logAction('network', 'start を送信しました');
-  } catch (err) {
-    console.warn('[ably] start publish failed', err);
-    const message = err?.code === 40160
-      ? 'start の送信に必要な権限が不足しています'
-      : 'start の送信に失敗しました';
-    logAction('network', message);
-  }
+  await Net.publishStart(payload, { logAction });
 }
 
 async function publishMove(move = {}) {
-  if (!ablyChannel || !ablyClient || !state.roomId) return;
-  const payload = {
-    clientId: getClientId(),
-    round: state.turn,
-    ...move,
-  };
-
-  try {
-    logAction('network', `move を送信中… (${payload.action})`);
-    await ablyChannel.publish('move', payload);
-    logAction('network', 'move を送信しました');
-  } catch (err) {
-    console.warn('[ably] move publish failed', err);
-    const message = err?.code === 40160
-      ? 'move の送信に必要な権限が不足しています'
-      : 'move の送信に失敗しました';
-    logAction('network', message);
-  }
+  await Net.publishMove({ ...move, round: state.turn }, { logAction });
 }
 
 async function publishState(snapshot = {}) {
-  if (!ablyChannel || !ablyClient || !state.roomId) return;
-  const baseSnapshot = {
+  const enriched = {
     phase: snapshot.phase ?? 'in-round',
     round: snapshot.round ?? state.turn,
     turnOwner: snapshot.turnOwner ?? getClientId(),
@@ -554,18 +430,7 @@ async function publishState(snapshot = {}) {
     log: snapshot.log ?? state.log.slice(-5),
     updatedAt: Date.now(),
   };
-
-  try {
-    logAction('network', 'state を送信中…');
-    await ablyChannel.publish('state', { ...baseSnapshot, ...snapshot });
-    logAction('network', 'state を送信しました');
-  } catch (err) {
-    console.warn('[ably] state publish failed', err);
-    const message = err?.code === 40160
-      ? 'state の送信に必要な権限が不足しています'
-      : 'state の送信に失敗しました';
-    logAction('network', message);
-  }
+  await Net.publishState(enriched, { logAction });
 }
 
 // detachRealtime was unused; removed
@@ -707,8 +572,7 @@ async function init() {
 // updateStartUI moved to UI.updateStartUI
 
 function ensureStarted() {
-  if (!ablyClient || ablyClient.connection?.state !== 'connected') return;
-  if (!ablyChannel) return;
+  if (!Net.isConnected()) return;
   return hostEnsureStarted({
     state,
     publishStart,
