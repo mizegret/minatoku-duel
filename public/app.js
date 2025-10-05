@@ -970,8 +970,7 @@ function pickCard(type) {
   return col[idx];
 }
 
-// randInt, shuffle -> js/utils/random.js
-// buildPlayers -> js/utils/players.js
+// utils moved to js/utils/*
 
 function navigateToRoom(roomId) {
   history.pushState({ roomId }, '', `/room/${roomId}`);
@@ -1119,4 +1118,4 @@ function ensureStarted() {
 
 init();
 // ---- Constants / Flags ----------------------------------------------------
-// DEBUG, CARD_TYPES -> js/constants.js
+// constants moved to js/constants.js
