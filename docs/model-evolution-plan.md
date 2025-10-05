@@ -49,11 +49,11 @@
   - 受け入れ: 既存 `cards.json` でも動作。表示/通信/ログ/スコアの順序・文言は完全一致。
   - 影響: `public/app.js:loadCards`（commit: 9e0ce5b）
 
-- [ ] [M2] 場の人間に基礎魅力を保持（保存のみ）
+- [x] [M2] 場の人間に基礎魅力を保持（保存のみ）
   - 目的: 召喚時に human 情報を場へ正しく投影できるように。
   - 変更: host側 `summon` で `field.humans.push({ id, name, baseCharm, decorations: [] })` に拡張（保存のみ）。
   - 受け入れ: スコア加算は従来どおり（+1固定）。表示・ログは不変。
-  - 影響: `public/js/game/host.js`
+  - 影響: `public/js/game/host.js`（commit: 90b0048）
 
 - [ ] [M3] スコア集計器の追加（裏取りのみ）
   - 目的: 「人/装飾/行動」から合計スコアを純関数で算出できる基盤作成。
