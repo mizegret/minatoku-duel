@@ -15,7 +15,9 @@ const deckSelfCount = document.getElementById('deck-self-count');
 const deckOpponentCount = document.getElementById('deck-opponent-count');
 const turnLabel = document.getElementById('turn-indicator');
 const actionLog = document.getElementById('action-log');
-const actionButtons = [];
+const actionButtons = [
+  document.getElementById('action-skip'),
+];
 
 const ROOM_ID_PATTERN = /^[a-z0-9-]{8}$/;
 const ENV_ENDPOINT = '/env';
@@ -552,6 +554,8 @@ function applyStateSnapshot(snapshot) {
         if (Number.isFinite(la.oji) && la.oji) delta.push(`好感度+${la.oji}`);
         const tail = delta.length ? `（${delta.join(' / ')}）` : '';
         msg = `${actorLabel}：ムーブ → ${la.cardName ?? ''} ${tail}`;
+      } else if (la.type === 'skip') {
+        msg = `${actorLabel}：このターンは様子見`;
       }
       else if (la.type === 'play') msg = `${actorLabel}：アクション`;
       else if (la.type === 'skip') msg = `${actorLabel}：スキップ`;
@@ -1059,6 +1063,12 @@ async function init() {
       });
       action();
     } else if (cardType === 'decoration') {
+      const hasSlot = Array.isArray(state.self?.field?.humans)
+        && state.self.field.humans.some((h) => Array.isArray(h?.decorations) ? h.decorations.length < MAX_DECORATIONS_PER_HUMAN : true);
+      if (!hasSlot) {
+        alert('装飾を付けられる人がいません（先に召喚するか、空き枠を確保してください）');
+        return;
+      }
       const ok = window.confirm(`この装飾を装備しますか？（空き枠のある人に付与）\n${cardName}`);
       if (!ok) return;
       const action = logButtonAction('decorate', `装飾：${cardName}`, () => {
@@ -1080,6 +1090,14 @@ async function init() {
       action();
     }
   });
+
+  // 港区女子っぽいスキップ（今回は様子見）
+  document.getElementById('action-skip')?.addEventListener(
+    'click',
+    logButtonAction('skip', 'このターンは様子見', () => {
+      void publishMove({ action: 'skip' });
+    }),
+  );
 
   // Startボタンは廃止（自動開始）
   // 下部の装飾ボタンは廃止（手札クリックで装飾）
