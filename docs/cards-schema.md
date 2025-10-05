@@ -15,9 +15,9 @@ ID 規約（共通）
 - `id: string` 必須。ユニーク。
 - `name: string` 必須。表示名。
 - `type: 'human' | 'decoration' | 'action'` 必須。
-- `rarity?: string` 例: common/rare/epic 等（任意）。
-- `tags?: string[]` 検索/フィルタ用（任意）。
-- `flavor?: string | string[]` 表示テキスト（任意）。
+
+備考（M0）
+- `rarity/tags/flavor` は「共通には置かない」。必要な型で個別に定義する（human のみ必須 rarity）。
 
 デフォルトの扱い（M0 時点の指針）
 - 数値フィールド未指定は 0 として扱う（human の `baseCharm/baseOji` など）。
@@ -25,23 +25,15 @@ ID 規約（共通）
 - 将来の軽バリデーション（M5）では、未指定の合理的補完と `console.warn` のみを想定（アプリは継続動作）。
 
 ## 人間（human）
-- `age?: number` 年齢（任意）。
-- `baseCharm?: number` 基礎魅力（任意、未指定は0として扱う）。
-- `baseOji?: number` 基礎オジ好感度（任意、未指定は0）。
-- `skills?: Skill[]` 専用スキル（任意）。
+- 必須: 
+  - `age: number`（仮の範囲: 20–35 を推奨。TODO: 決定後に確定）
+  - `rarity: 'UR' | 'SR' | 'R' | 'N'`（大文字固定、Enum）
+  - `baseCharm: number`（基礎の魅力度）
+- 非対象（M0時点では入れない）:
+  - `tags`, `flavor`, `skills`, `baseOji`（予約/将来検討）
   - M2 で場に `baseCharm` を保持（スコア加算は現行+1のまま）。
 
-### Skill（案）
-```
-type Skill = {
-  id: string;
-  name: string;
-  text?: string;            // 説明
-  triggers?: Trigger[];     // 発火タイミング（例: 'onSummon', 'onDecorate', 'onTurnStart'）
-  effects?: Effect[];       // 下記 Effect と同形式
-}
-type Trigger = 'onSummon' | 'onDecorate' | 'onTurnStart' | 'onTurnEnd' | 'passive';
-```
+（注）年齢の下限はテーマ/表現上の配慮として 20 を仮置き。飲酒表現が登場するため。上限は 35 を仮置き。いずれも TODO として後日調整。
 
 ## 装飾（decoration）
 - `charm?: number` 魅力補正（デフォルト 1）。
