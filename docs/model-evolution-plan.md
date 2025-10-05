@@ -61,11 +61,12 @@
   - 受け入れ: UI/通信/表示ログは不変。コンソールにのみ検証結果を出力。不一致は `warn` のみ。
   - 影響: `public/js/utils/score.js`（新規）, `public/js/game/host.js`（集計呼び出し; commit: bfe7ca1）
 
-- [ ] [M4] スコアルール外出し
+- [x] [M4] スコアルール外出し
   - 目的: どのタイミングで何点加算/減算するかを表形式にして切替可能に。
-  - 変更: `public/js/constants.js` に `SCORE_RULES` を追加（例: summon: +baseCharm or +1, decorate: +card.charm, play: effects）。
-  - 受け入れ: 現状ルールと同一の結果になるデフォルトテーブルを用意。将来はここを入れ替えるだけで挙動変更可能に。
-  - 影響: `constants.js`, `host.js`（適用時）
+  - 変更: `public/js/constants.js` に `SCORE_RULES` を追加。`host.js` の加点処理をテーブル参照化（現挙動と同値）。
+    - 初期テーブル: `summon: charm+1`, `decorate: charm += card.charm || 1, oji += 0`, `play: charm+1, oji+1` + effects(op:'add')。
+  - 受け入れ: 現状ルールと完全一致（スコア/ログ/順序は不変）。
+  - 影響: `public/js/constants.js`（SCORE_RULES; commit: 432d690）, `public/js/game/host.js`（参照; commit: 432d690）
 
 - [ ] [M5] カードデータのライトバリデーション
   - 目的: 早期にデータ不整合を検知。
