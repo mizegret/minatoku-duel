@@ -1,6 +1,8 @@
 import { DEBUG, CARD_TYPES, TOTAL_TURNS, ABLY_CHANNEL_PREFIX, MAX_DECORATIONS_PER_HUMAN } from './js/constants.js';
 import { randInt, shuffle } from './js/utils/random.js';
 import { buildPlayers } from './js/utils/players.js';
+import { nextCard } from './js/utils/cards.js';
+import { buildDeck, drawCard } from './js/utils/deck.js';
 
 const lobbySection = document.getElementById('screen-lobby');
 const roomSection = document.getElementById('screen-room');
