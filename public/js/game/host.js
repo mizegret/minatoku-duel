@@ -339,5 +339,22 @@ export function handleMoveMessage(message, ctx) {
   } catch {}
 
   const players = buildPlayers(game, members2);
-  publishState({ round, turnOwner: game.turnOwner, players, phase, roundHalf: game.half, lastAction, turnStart: turnStartInfo, turnEnd: turnEndInfo });
+  // Prepare endgame result when phase ended
+  let result = undefined;
+  if (phase === 'ended') {
+    try {
+      const p0 = members2[0];
+      const p1 = members2[1];
+      const s0 = game.scoresById?.[p0]?.total || 0;
+      const s1 = game.scoresById?.[p1]?.total || 0;
+      if (s0 === s1) {
+        result = { type: 'draw', winnerId: null, scores: { [p0]: game.scoresById[p0], [p1]: game.scoresById[p1] }, finishedAt: Date.now() };
+      } else {
+        const winnerId = s0 > s1 ? p0 : p1;
+        result = { type: 'win', winnerId, scores: { [p0]: game.scoresById[p0], [p1]: game.scoresById[p1] }, finishedAt: Date.now() };
+      }
+    } catch {}
+  }
+
+  publishState({ round, turnOwner: game.turnOwner, players, phase, roundHalf: game.half, lastAction, turnStart: turnStartInfo, turnEnd: turnEndInfo, result });
 }

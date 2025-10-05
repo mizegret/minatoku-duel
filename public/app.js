@@ -379,7 +379,24 @@ function applyStateSnapshot(snapshot) {
     setNotice('');
     if (phase === 'ended' || phase === 'game-over' || round > TOTAL_TURNS) {
       lockActions();
-      setNotice('ゲーム終了');
+      // Endgame summary (winner/draw)
+      const result = snapshot?.result;
+      if (result && typeof result === 'object') {
+        const pMy = me?.scores?.total ?? 0;
+        const pOpp = opp?.scores?.total ?? 0;
+        if (result.type === 'draw') {
+          setNotice(`ゲーム終了：引き分け（${pMy} - ${pOpp}）`);
+          logAction('state', `結果：引き分け（${pMy} - ${pOpp}）`);
+        } else if (result.type === 'win') {
+          const mine = !!(result.winnerId && me?.clientId && result.winnerId === me.clientId);
+          setNotice(`ゲーム終了：${mine ? 'あなたの勝ち' : 'あなたの負け'}（${pMy} - ${pOpp}）`);
+          logAction('state', `結果：${mine ? '勝ち' : '負け'}（${pMy} - ${pOpp}）`);
+        } else {
+          setNotice('ゲーム終了');
+        }
+      } else {
+        setNotice('ゲーム終了');
+      }
     } else if (myTurn) {
       unlockActions();
       const turnKey = `turn:${round}:${turnOwner || ''}`;
