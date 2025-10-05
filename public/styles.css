@@ -32,6 +32,8 @@ body {
   color: var(--fg);
 }
 
+html, body { height: 100%; }
+
 main {
   max-width: 960px;
   margin: 0 auto;
@@ -39,6 +41,15 @@ main {
   display: flex;
   flex-direction: column;
   gap: 32px;
+}
+
+/* Hybrid (use more screen on desktop) */
+.pixi-hybrid body { overflow: hidden; }
+.pixi-hybrid main {
+  max-width: none;
+  width: 100vw;
+  height: 100vh;
+  padding: 12px 24px 16px;
 }
 
 #screen-lobby,
@@ -73,6 +84,41 @@ header p { margin: 0; }
 #turn-indicator { margin-left: auto; font-weight: 600; letter-spacing: 0.02em; }
 
 .board { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.canvas-center { background: rgba(10, 22, 32, 0.2); border: 1px solid var(--border); border-radius: 14px; min-height: 380px; position: relative; overflow: hidden; }
+
+/* Pixi hybrid layout: left=hand(HTML), center=canvas, right=log(HTML) */
+.pixi-hybrid #screen-room { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+.pixi-hybrid .board { grid-template-columns: 340px 1fr 360px; align-items: stretch; column-gap: 20px; height: 100%; min-height: 0; margin-bottom: 0; }
+.pixi-hybrid #canvas-center { height: 100%; min-height: 0; }
+.pixi-hybrid .player-self, .pixi-hybrid .player-opponent { height: 100%; }
+.pixi-hybrid .player { min-height: 0; overflow: hidden; }
+.pixi-hybrid .player-self .hand {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 6px;
+  align-content: start;
+}
+.pixi-hybrid .player-self .hand .card {
+  min-width: 0; width: 100%;
+  aspect-ratio: 63 / 88; /* TCG-like */
+  display: flex; align-items: center; justify-content: center;
+  padding: 0;
+  font-weight: 600; font-size: .9rem; text-align: center;
+}
+@media (max-width: 880px) {
+  .pixi-hybrid .player-self .hand { grid-template-columns: 1fr; }
+}
+.pixi-hybrid .player-opponent > h2, .pixi-hybrid .player-opponent .deck { display: none; }
+.pixi-hybrid #log-vertical { background: rgba(255, 255, 255, 0.72); border-radius: 12px; padding: 12px; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 6px; }
+@media (prefers-color-scheme: dark) {
+  .pixi-hybrid #log-vertical { background: rgba(15, 32, 40, 0.65); color: rgba(230, 251, 255, 0.78); }
+}
+.pixi-hybrid section.log { display: none; }
 .player { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25); }
 .player h2 { margin: 0; font-size: 1.1rem; }
 .hand, .field { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -138,3 +184,11 @@ header p { margin: 0; }
   #turn-indicator { margin-left: 0; }
   .card { min-width: 100px; }
 }
+.pixi-hybrid header { margin-bottom: 8px; }
+.pixi-hybrid main { gap: 16px; }
+.notice-inline { color: var(--muted); font-weight: 600; }
+.notice-inline[hidden] { display: none !important; }
+
+/* inline scores in header */
+.scores-inline { display: flex; gap: 14px; font-weight: 600; margin-left: 8px; white-space: nowrap; }
+.scores-inline div { display: flex; gap: 6px; align-items: baseline; }

@@ -1,7 +1,9 @@
 import { TOTAL_TURNS, ABLY_CHANNEL_PREFIX, ACTIONS } from './js/constants.js';
 // host/game logic
 import { ensureStarted as hostEnsureStarted, handleMoveMessage as hostHandleMoveMessage } from './js/game/host.js';
-import * as UI from './js/ui/render.js';
+// UI renderer is selected at runtime to keep default DOM UI intact.
+// When `?renderer=pixi` is present, we load Pixi adapter; otherwise DOM renderer.
+let UI = null;
 import { bindInputs } from './js/ui/inputs.js';
 import * as Net from './js/net/ably.js';
 import { state, setState, addMember, subscribe } from './js/state.js';
@@ -219,7 +221,6 @@ function resetLog() { setState({ log: [] }); }
 
 function pushLog(entry) {
   const next = [entry, ...state.log];
-  if (next.length > 12) next.length = 12;
   setState({ log: next });
 }
 
@@ -525,7 +526,7 @@ async function publishState(snapshot = {}) {
         scores: state.scores ?? { charm: 0, oji: 0, total: 0 },
       },
     ],
-    log: state.log.slice(-5),
+    log: state.log,
     updatedAt: Date.now(),
     ...snapshot,
   };
@@ -632,8 +633,25 @@ function navigateToRoom(roomId) {
 // navigateToLobby was unused; removed
 
 async function init() {
+  // Select UI renderer (default: DOM)
+  try {
+    const params = new URLSearchParams(location.search);
+    const renderer = params.get('renderer');
+    // Default to Pixi. Opt-out with ?renderer=dom
+    UI = renderer === 'dom'
+      ? await import('./js/ui/render.js')
+      : await import('./js/ui/pixi/renderer.js');
+  } catch (e) {
+    // Fallback to Pixi first, then DOM
+    try { UI = await import('./js/ui/pixi/renderer.js'); }
+    catch { UI = await import('./js/ui/render.js'); }
+  }
+
   await loadEnvironment();
   await loadCards();
+
+  // Provide context to UI (used by Pixi adapter for click→move)
+  try { UI.init?.({ state, publishMove, logButtonAction }); } catch {}
 
   // B1: subscribe minimal keys to UI updates
   subscribe('turn', (v) => UI.updateTurnIndicator(v ?? state.turn, TOTAL_TURNS));

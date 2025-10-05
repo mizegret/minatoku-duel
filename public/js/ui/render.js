@@ -1,4 +1,6 @@
 import { TOTAL_TURNS, MAX_DECORATIONS_PER_HUMAN } from '../constants.js';
+// Optional init hook for alternative renderers parity
+export function init(_ctx) { /* no-op for DOM renderer */ }
 
 // Cache DOM refs (modules are deferred, DOM is parsed)
 const refs = {

@@ -10,7 +10,6 @@
   </head>
   <body>
     <main>
-      <p id="notice" class="notice" hidden></p>
       <section id="screen-lobby">
         <h1>港区デュエル</h1>
         <button id="create-room">新しい部屋を作る</button>
@@ -22,6 +21,12 @@
           <h1>港区デュエル</h1>
           <p>Room: <span id="room-id"></span></p>
           <button id="copy-room-link">招待リンクをコピー</button>
+          <section class="scores scores-inline">
+            <div>魅力: <span id="score-charm">0</span></div>
+            <div>オジ好感度: <span id="score-oji">0</span></div>
+            <div>合計: <span id="score-total">0</span></div>
+          </section>
+          <span id="notice" class="notice-inline" hidden></span>
           <p id="turn-indicator" class="turn">ターン 1 / 5</p>
           <button id="action-skip" title="このターンは様子見">このターンは様子見</button>
         </header>
@@ -31,25 +36,19 @@
             <div class="deck">山札: <span id="deck-self-count" class="deck-count">0</span></div>
             <div class="section-label">手札</div>
             <div class="hand" id="hand-self"></div>
-            <div class="section-label">場</div>
-            <div class="field" id="field-self"></div>
           </div>
+          <div class="canvas-center" id="canvas-center" aria-hidden="true"></div>
           <div class="player player-opponent">
             <h2>相手</h2>
             <div class="deck">山札: <span id="deck-opponent-count" class="deck-count">0</span></div>
-            <div class="section-label">手札</div>
-            <div class="hand" id="hand-opponent"></div>
-            <div class="section-label">場</div>
-            <div class="field" id="field-opponent"></div>
+            <div class="log-vertical" id="log-vertical"></div>
+            <div class="section-label" style="display:none">手札</div>
+            <div class="hand" id="hand-opponent" style="display:none"></div>
+            <div class="section-label" style="display:none">場</div>
+            <div class="field" id="field-opponent" style="display:none"></div>
           </div>
         </div>
         <!-- actions セクションは Mock のため削除 -->
-        <section class="scores">
-          <div>魅力: <span id="score-charm">0</span></div>
-          <div>オジ好感度: <span id="score-oji">0</span></div>
-          <div>合計: <span id="score-total">0</span></div>
-        </section>
-
         <section class="log" id="action-log"></section>
       </section>
     </main>
