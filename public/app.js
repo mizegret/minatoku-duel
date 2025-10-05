@@ -1,4 +1,4 @@
-import { TOTAL_TURNS, ABLY_CHANNEL_PREFIX } from './js/constants.js';
+import { TOTAL_TURNS, ABLY_CHANNEL_PREFIX, ACTIONS } from './js/constants.js';
 // host/game logic
 import { ensureStarted as hostEnsureStarted, handleMoveMessage as hostHandleMoveMessage } from './js/game/host.js';
 import * as UI from './js/ui/render.js';
@@ -271,24 +271,24 @@ function applyStateSnapshot(snapshot) {
     if (la && la.type) {
       const actorLabel = la.actorId && la.actorId === myId ? 'あなた' : '相手';
       let msg = '';
-      if (la.type === 'summon') msg = `${actorLabel}：召喚 → ${la.cardName ?? ''}`;
-      else if (la.type === 'decorate') {
+      if (la.type === ACTIONS.summon) msg = `${actorLabel}：召喚 → ${la.cardName ?? ''}`;
+      else if (la.type === ACTIONS.decorate) {
         const delta = [];
         if (Number.isFinite(la.charm) && la.charm) delta.push(`魅力+${la.charm}`);
         if (Number.isFinite(la.oji) && la.oji) delta.push(`好感度+${la.oji}`);
         const tail = delta.length ? `（${delta.join(' / ')}）` : '';
         msg = `${actorLabel}：装飾 → ${la.cardName ?? ''} ${tail}`;
-      } else if (la.type === 'play') {
+      } else if (la.type === ACTIONS.play) {
         const delta = [];
         if (Number.isFinite(la.charm) && la.charm) delta.push(`魅力+${la.charm}`);
         if (Number.isFinite(la.oji) && la.oji) delta.push(`好感度+${la.oji}`);
         const tail = delta.length ? `（${delta.join(' / ')}）` : '';
         msg = `${actorLabel}：ムーブ → ${la.cardName ?? ''} ${tail}`;
-      } else if (la.type === 'skip') {
+      } else if (la.type === ACTIONS.skip) {
         msg = `${actorLabel}：このターンは様子見`;
       }
-      else if (la.type === 'play') msg = `${actorLabel}：アクション`;
-      else if (la.type === 'skip') msg = `${actorLabel}：スキップ`;
+      else if (la.type === ACTIONS.play) msg = `${actorLabel}：アクション`;
+      else if (la.type === ACTIONS.skip) msg = `${actorLabel}：スキップ`;
       if (msg) logAction('move', msg);
     } else {
       // 最小実装: 受信確認

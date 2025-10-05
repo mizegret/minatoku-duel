@@ -1,4 +1,4 @@
-import { MAX_DECORATIONS_PER_HUMAN } from '../constants.js';
+import { MAX_DECORATIONS_PER_HUMAN, ACTIONS } from '../constants.js';
 
 export function bindInputs(ctx) {
   const {
@@ -45,8 +45,8 @@ export function bindInputs(ctx) {
     if (cardType === 'human') {
       const ok = window.confirm(`このカードを召喚しますか？\n${cardName}`);
       if (!ok) return;
-      const action = logButtonAction('summon', `召喚：${cardName}`, () => {
-        void publishMove({ action: 'summon', cardId });
+      const action = logButtonAction(ACTIONS.summon, `召喚：${cardName}`, () => {
+        void publishMove({ action: ACTIONS.summon, cardId });
       });
       action();
     } else if (cardType === 'decoration') {
@@ -58,8 +58,8 @@ export function bindInputs(ctx) {
       }
       const ok = window.confirm(`この装飾を装備しますか？（空き枠のある人に付与）\n${cardName}`);
       if (!ok) return;
-      const action = logButtonAction('decorate', `装飾：${cardName}`, () => {
-        void publishMove({ action: 'decorate', cardId });
+      const action = logButtonAction(ACTIONS.decorate, `装飾：${cardName}`, () => {
+        void publishMove({ action: ACTIONS.decorate, cardId });
       });
       action();
     } else if (cardType === 'action') {
@@ -70,8 +70,8 @@ export function bindInputs(ctx) {
       }
       const ok = window.confirm(`このムーブを使いますか？\n${cardName}`);
       if (!ok) return;
-      const action = logButtonAction('play', `ムーブ：${cardName}`, () => {
-        void publishMove({ action: 'play', cardId });
+      const action = logButtonAction(ACTIONS.play, `ムーブ：${cardName}`, () => {
+        void publishMove({ action: ACTIONS.play, cardId });
       });
       action();
     }
@@ -80,9 +80,8 @@ export function bindInputs(ctx) {
   // スキップ
   skipButton?.addEventListener(
     'click',
-    logButtonAction('skip', 'このターンは様子見', () => {
-      void publishMove({ action: 'skip' });
+    logButtonAction(ACTIONS.skip, 'このターンは様子見', () => {
+      void publishMove({ action: ACTIONS.skip });
     }),
   );
 }
-

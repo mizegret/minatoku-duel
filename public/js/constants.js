@@ -10,3 +10,19 @@ export const DECK_COMPOSITION = {
   decorations: 10,
   actions: 5,
 };
+
+// Messaging event names (for Ably publish/subscribe)
+export const EVENTS = {
+  join: 'join',
+  start: 'start',
+  move: 'move',
+  state: 'state',
+};
+
+// In-game action identifiers
+export const ACTIONS = {
+  summon: 'summon',
+  decorate: 'decorate',
+  play: 'play',
+  skip: 'skip',
+};

@@ -1,4 +1,4 @@
-import { TOTAL_TURNS, MAX_DECORATIONS_PER_HUMAN, HAND_SIZE } from '../constants.js';
+import { TOTAL_TURNS, MAX_DECORATIONS_PER_HUMAN, HAND_SIZE, ACTIONS } from '../constants.js';
 import { buildPlayers } from '../utils/players.js';
 import { buildDeck, drawCard } from '../utils/deck.js';
 
@@ -82,7 +82,7 @@ export function handleMoveMessage(message, ctx) {
   const field = game.fieldById[actorId] ?? { humans: [] };
   let lastAction = { type: data.action, actorId, cardName: undefined };
 
-  if (data.action === 'summon') {
+  if (data.action === ACTIONS.summon) {
     // remove chosen human from hand and put it on field
     const hand = Array.isArray(game.handsById?.[actorId]) ? game.handsById[actorId] : [];
     let idx = -1;
@@ -103,7 +103,7 @@ export function handleMoveMessage(message, ctx) {
     } else {
       logAction?.('event', 'summon: 手札に一致カードなし');
     }
-  } else if (data.action === 'decorate') {
+  } else if (data.action === ACTIONS.decorate) {
     if (field.humans.length > 0) {
       const target = field.humans.find((h) => (h?.decorations?.length ?? 0) < MAX_DECORATIONS_PER_HUMAN);
       if (target) {
@@ -134,7 +134,7 @@ export function handleMoveMessage(message, ctx) {
     } else {
       logAction?.('event', 'decorate: 場に人間がいないため無視');
     }
-  } else if (data.action === 'play') {
+  } else if (data.action === ACTIONS.play) {
     // action: guard when no human in field (still consume action per current behavior)
     const myField = game.fieldById?.[actorId] ?? { humans: [] };
     if (!Array.isArray(myField.humans) || myField.humans.length === 0) {
@@ -177,8 +177,8 @@ export function handleMoveMessage(message, ctx) {
     } else {
       logAction?.('event', 'play: 手札にアクションが見つからないため無視');
     }
-  } else if (data.action === 'skip') {
-    lastAction.type = 'skip';
+  } else if (data.action === ACTIONS.skip) {
+    lastAction.type = ACTIONS.skip;
   }
 
   game.fieldById[actorId] = field;
@@ -216,4 +216,3 @@ export function handleMoveMessage(message, ctx) {
   const players = buildPlayers(game, members2);
   publishState({ round, turnOwner: game.turnOwner, players, phase, roundHalf: game.half, lastAction });
 }
-

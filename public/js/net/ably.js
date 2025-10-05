@@ -3,6 +3,8 @@
 // - connect: attach to channel, subscribe handlers, auto-join
 // - publish: join/start/move/state with consistent log wording
 
+import { EVENTS } from '../constants.js';
+
 let client = null;
 let channel = null;
 let lastJoinedRoomId = null;
@@ -79,10 +81,10 @@ export function connect({
   if (!channel) channel = client.channels.get(channelName);
 
   if (!subscribed) {
-    if (onJoin) channel.subscribe('join', onJoin);
-    if (onStart) channel.subscribe('start', onStart);
-    if (onMove) channel.subscribe('move', onMove);
-    if (onState) channel.subscribe('state', onState);
+    if (onJoin) channel.subscribe(EVENTS.join, onJoin);
+    if (onStart) channel.subscribe(EVENTS.start, onStart);
+    if (onMove) channel.subscribe(EVENTS.move, onMove);
+    if (onState) channel.subscribe(EVENTS.state, onState);
     subscribed = true;
   }
 
@@ -149,7 +151,7 @@ export async function publishJoin({ roomId, logAction }) {
   };
   try {
     logAction?.('network', 'join を送信中…');
-    await channel.publish('join', payload);
+    await channel.publish(EVENTS.join, payload);
     lastJoinedRoomId = roomId;
     logAction?.('network', 'join を送信しました');
   } catch (err) {
@@ -170,7 +172,7 @@ export async function publishStart(payload = {}, { logAction } = {}) {
   };
   try {
     logAction?.('network', 'start を送信中…');
-    await channel.publish('start', { ...base, ...payload });
+    await channel.publish(EVENTS.start, { ...base, ...payload });
     logAction?.('network', 'start を送信しました');
   } catch (err) {
     const message = err?.code === 40160
@@ -185,7 +187,7 @@ export async function publishMove(payload = {}, { logAction } = {}) {
   const base = { clientId: client.auth?.clientId ?? null, round: payload.round ?? undefined };
   try {
     logAction?.('network', `move を送信中… (${payload.action})`);
-    await channel.publish('move', { ...base, ...payload });
+    await channel.publish(EVENTS.move, { ...base, ...payload });
     logAction?.('network', 'move を送信しました');
   } catch (err) {
     const message = err?.code === 40160
@@ -207,7 +209,7 @@ export async function publishState(snapshot = {}, { logAction } = {}) {
   };
   try {
     logAction?.('network', 'state を送信中…');
-    await channel.publish('state', { ...baseSnapshot, ...snapshot });
+    await channel.publish(EVENTS.state, { ...baseSnapshot, ...snapshot });
     logAction?.('network', 'state を送信しました');
   } catch (err) {
     const message = err?.code === 40160
