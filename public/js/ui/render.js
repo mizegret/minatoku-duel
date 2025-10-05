@@ -25,6 +25,7 @@ function clear(el) {
 function renderHand(target, cards, mask = false) {
   if (!target) return;
   clear(target);
+  const frag = document.createDocumentFragment();
   cards.forEach((card) => {
     const cardEl = document.createElement('div');
     cardEl.className = `card card-${card.type}${mask ? ' masked' : ''}`;
@@ -34,13 +35,15 @@ function renderHand(target, cards, mask = false) {
       cardEl.dataset.cardType = card.type || '';
       cardEl.dataset.cardName = card.name || '';
     }
-    target.appendChild(cardEl);
+    frag.appendChild(cardEl);
   });
+  target.appendChild(frag);
 }
 
 function renderField(target, field) {
   if (!target) return;
   clear(target);
+  const frag = document.createDocumentFragment();
   field.humans.forEach((human) => {
     const humanEl = document.createElement('div');
     humanEl.className = 'field-human';
@@ -69,8 +72,9 @@ function renderField(target, field) {
     }
 
     humanEl.appendChild(decorationsWrap);
-    target.appendChild(humanEl);
+    frag.appendChild(humanEl);
   });
+  target.appendChild(frag);
 }
 
 export function renderGame(state) {
@@ -126,4 +130,3 @@ export function updateStartUI(isHost) {
   if (isHost) refs.copyButton.removeAttribute('hidden');
   else refs.copyButton.setAttribute('hidden', '');
 }
-

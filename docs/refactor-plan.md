@@ -21,15 +21,15 @@
   - 追加: `computeDisplayRound({ phase, round, myTurn, roundHalf })`。
   - 受け入れ: 表示ターンが全条件で従来と一致。
 
-- [ ] A4: 手札取り出しの共通化
+- [x] A4: 手札取り出しの共通化
   - 追加: `takeFromHand(game, actorId, { cardId, type })`（`public/js/utils/deck.js` か `public/js/game/host.js` 内）。
   - 受け入れ: summon/decorate/play の取り出し挙動が一致（ID優先→type）。
 
-- [ ] A5: スコア加算の共通化
+- [x] A5: スコア加算の共通化
   - 追加: `applyScoreDelta(scores, { charm = 0, oji = 0 })`（`host.js`）。
   - 受け入れ: 加算後の `total` 更新を含め従来と一致。
 
-- [ ] A6: UI描画で DocumentFragment を使用
+- [x] A6: UI描画で DocumentFragment を使用
   - 変更: `ui/render.js` の `renderHand` / `renderField` を Fragment 経由に。
   - 受け入れ: DOM出力（innerHTML/テキスト/属性）が一致。視覚挙動も不変。
 
