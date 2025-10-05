@@ -16,6 +16,9 @@ export function ensureStarted(ctx) {
   const members = getMembers();
   const hostId = getClientId();
   const game = (state.hostGame = {
+    seed: (typeof crypto !== 'undefined' && crypto.getRandomValues)
+      ? (() => { const b=new Uint32Array(1); crypto.getRandomValues(b); return b[0].toString(16).padStart(8,'0'); })()
+      : Math.floor(Math.random()*1e9).toString(16),
     round: 1,
     turnOwner: hostId,
     roundStarter: hostId,

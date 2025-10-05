@@ -71,7 +71,7 @@ async function loadCards() {
       };
 
       if (type === 'human') {
-        humans.push({
+        const h = {
           ...base,
           age: typeof c.age === 'number' ? c.age : undefined,
           rarity: typeof c.rarity === 'string' ? c.rarity : undefined,
@@ -82,9 +82,26 @@ async function loadCards() {
           // legacy fields kept for compatibility (no behavior change)
           charm: typeof c.charm === 'number' ? c.charm : undefined,
           oji: typeof c.oji === 'number' ? c.oji : undefined,
-        });
+        };
+        // M5: light validation + safe defaults (warn-only; behavior unchanged)
+        if (!Number.isFinite(h.baseCharm)) {
+          h.baseCharm = 0; // save-only; not used yet
+          console.warn('[cards][validate] human.baseCharm missing; default 0', h.id);
+        }
+        const R = String(h.rarity || '').toUpperCase();
+        const okR = R === 'UR' || R === 'SR' || R === 'R' || R === 'N';
+        if (!okR) {
+          h.rarity = 'N';
+          if (h.rarity !== undefined) console.warn('[cards][validate] human.rarity invalid; fallback N', h.id, h.rarity);
+        } else {
+          h.rarity = R;
+        }
+        if (!Number.isFinite(h.age)) {
+          console.warn('[cards][validate] human.age missing', h.id);
+        }
+        humans.push(h);
       } else if (type === 'decoration') {
-        decorations.push({
+        const d = {
           ...base,
           rarity: typeof c.rarity === 'string' ? c.rarity : undefined,
           text: typeof c.text === 'string' ? c.text : undefined,
@@ -93,9 +110,19 @@ async function loadCards() {
           charmBonus: typeof c.charmBonus === 'number' ? c.charmBonus : undefined, // reserved/new
           oji: typeof c.oji === 'number' ? c.oji : undefined, // reserved
           slotsUsed: typeof c.slotsUsed === 'number' ? c.slotsUsed : undefined, // reserved
-        });
+        };
+        // M5: defaults + warnings
+        const RD = String(d.rarity || '').toUpperCase();
+        const okRD = RD === 'UR' || RD === 'SR' || RD === 'R' || RD === 'N';
+        if (!okRD) { d.rarity = 'N'; console.warn('[cards][validate] decoration.rarity missing; fallback N', d.id); } else { d.rarity = RD; }
+        if (!Number.isFinite(d.charmBonus)) {
+          d.charmBonus = Number.isFinite(d.charm) ? Number(d.charm) : 1;
+        }
+        if (!Number.isFinite(d.slotsUsed)) d.slotsUsed = 1;
+        if (!d.text) console.warn('[cards][validate] decoration.text missing', d.id);
+        decorations.push(d);
       } else if (type === 'action') {
-        actions.push({
+        const a = {
           ...base,
           rarity: typeof c.rarity === 'string' ? c.rarity : undefined,
           text: typeof c.text === 'string' ? c.text : undefined,
@@ -104,9 +131,25 @@ async function loadCards() {
           // legacy numeric hooks kept for safety (unused by runtime)
           charm: typeof c.charm === 'number' ? c.charm : undefined,
           oji: typeof c.oji === 'number' ? c.oji : undefined,
-        });
+        };
+        const RA = String(a.rarity || '').toUpperCase();
+        const okRA = RA === 'UR' || RA === 'SR' || RA === 'R' || RA === 'N';
+        if (!okRA) { a.rarity = 'N'; console.warn('[cards][validate] action.rarity missing; fallback N', a.id); } else { a.rarity = RA; }
+        if (!Array.isArray(a.effect)) { a.effect = []; console.warn('[cards][validate] action.effect missing; default []', a.id); }
+        if (!a.text) console.warn('[cards][validate] action.text missing', a.id);
+        actions.push(a);
       }
       // それ以外の type は無視（MVP）
+    }
+
+    // M5: duplicate id check (warn-only)
+    const seen = new Set();
+    for (const col of [humans, decorations, actions]) {
+      for (const it of col) {
+        if (!it?.id) continue;
+        if (seen.has(it.id)) console.warn('[cards][validate] duplicate id detected', it.id);
+        else seen.add(it.id);
+      }
     }
 
     setState({ cardsByType: { humans, decorations, actions } });
