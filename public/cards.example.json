@@ -23,11 +23,24 @@
       "charm": 1, "charmBonus": 1, "slotsUsed": 1
     },
 
-    { "id": "a_selfie", "name": "インスタ自慢", "type": "action", "effect": [
-      { "op": "add", "stat": "charm", "target": "self", "value": 1 }
-    ]},
-    { "id": "a_whisper", "name": "トイレで陰口", "type": "action", "effect": [
-      { "op": "add", "stat": "oji", "target": "opponent", "value": -1 }
-    ]}
+    { "id": "a_selfie", "name": "インスタ自慢", "type": "action",
+      "rarity": "N",
+      "text": "映える角度とライティングで“魅せる”自己演出。ストーリーの積み重ねで魅力は+1。",
+      "imageUrl": "/assets/cards/actions/a_selfie.webp",
+      "effect": [ { "op": "add", "stat": "charm", "target": "self", "value": 1 } ]
+    },
+    { "id": "a_whisper", "name": "トイレで陰口", "type": "action",
+      "rarity": "R",
+      "text": "姿を消して耳打ち。さりげない情報操作で相手陣営への評価は-1。",
+      "imageUrl": "/assets/cards/actions/a_whisper.webp",
+      "effect": [ { "op": "add", "stat": "oji", "target": "opponent", "value": -1 } ]
+    },
+
+    { "id": "a_pinky_touch", "name": "カウンター下の小指タッチ", "type": "action",
+      "rarity": "SR",
+      "text": "いきなり手をつかむのではなく、小指から触れる高等テク。下心を掌で転がす準備で、好感度は+2。",
+      "imageUrl": "/assets/cards/actions/a_pinky_touch.webp",
+      "effect": [ { "op": "add", "stat": "oji", "target": "self", "value": 2 } ]
+    }
   ]
 }

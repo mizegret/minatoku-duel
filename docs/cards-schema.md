@@ -97,7 +97,14 @@ type Condition =
 - 形式: `webp` 推奨（PNG/JPG 可）。長辺目安は 256〜512px（MVP）。
 
 ## 行動（action）
-- `effect?: Effect[]` 効果一覧。既存の形式を踏襲。
+- 必須:
+  - `rarity: 'UR' | 'SR' | 'R' | 'N'`（大文字固定、Enum）
+  - `text: string`（説明: なぜ魅力/好感度が変化するのか等、世界観に基づく理由を含める）
+  - `imageUrl: string`（表示用画像のURL/パス。例: `/assets/cards/actions/a_selfie.webp`）
+  - `effect: Effect[]` 効果一覧。既存の形式を踏襲（M0では `op:'add'` のみ正式）。
+
+表示/色（M0 ガイド）
+- rarity に応じて human/decoration と同一パレットを使用。
 
 ### Effect（現行踏襲 + 予約）
 ```
