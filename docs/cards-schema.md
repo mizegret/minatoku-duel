@@ -68,10 +68,24 @@ type Condition =
 （注）年齢の下限はテーマ/表現上の配慮として 20 を仮置き。飲酒表現が登場するため。上限は 35 を仮置き。いずれも TODO として後日調整。
 
 ## 装飾（decoration）
-- `charm?: number` 魅力補正（デフォルト 1）。
-- `oji?: number` 好感度補正（デフォルト 0）。
-- `slotsUsed?: number` 将来拡張（1以上、デフォルト1）。
-  - M0/M1 は保持のみ。加点は現行ルール（`charm += card.charm || 1`, `oji += 0`）。
+- 必須:
+  - `rarity: 'UR' | 'SR' | 'R' | 'N'`（大文字固定、Enum）
+  - `text: string`（説明: なぜ魅力が上がるのか等、世界観に基づく理由を含める）
+  - `imageUrl: string`（表示用画像のURL/パス。例: `/assets/cards/decorations/d_champagne.webp`）
+  - `charmBonus: number`（魅力の増分。名称で“増分”を明確化）
+- 互換エイリアス（M0/M1 の互換目的）
+  - `charm?: number` … 旧フィールド。将来は `charmBonus` へ集約予定（M1でローダーが双方を受理）。
+- 任意/予約:
+  - `oji?: number` 好感度補正（予約、未使用）。
+  - `slotsUsed?: number` 装備スロットの消費数（予約、未使用。デフォルト1）。
+
+表示/色（M0 ガイド）
+- human と同じ rarity パレットを使用（UR: ゴールド系, SR: パープル系, R: ブルー系, N: グレー系）。
+- 予約: `display?.colorOverride` で個別上書き可能にする（現時点では未使用）。
+
+備考（挙動不変）
+- 現行のスコア計算は `oji` を使用しないため、`oji` を記載しても効果はない。将来のルール切替で利用予定。
+- 現行実装は `charm` を読み取るため、当面は `charmBonus` と同値の `charm` を併記しておくと安全。
 
 ## 行動（action）
 - `effect?: Effect[]` 効果一覧。既存の形式を踏襲。
