@@ -1,6 +1,8 @@
-import { TOTAL_TURNS, ABLY_CHANNEL_PREFIX, MAX_DECORATIONS_PER_HUMAN } from './js/constants.js';
+import { TOTAL_TURNS, ABLY_CHANNEL_PREFIX } from './js/constants.js';
 // host/game logic
 import { ensureStarted as hostEnsureStarted, handleMoveMessage as hostHandleMoveMessage } from './js/game/host.js';
+import * as UI from './js/ui/render.js';
+import { bindInputs } from './js/ui/inputs.js';
 
 const lobbySection = document.getElementById('screen-lobby');
 const roomSection = document.getElementById('screen-room');
@@ -166,7 +168,7 @@ function showRoom(roomId) {
   connectRealtime(roomId);
   lobbySection?.setAttribute('hidden', '');
   roomSection?.removeAttribute('hidden');
-  updateStartUI();
+  UI.updateStartUI(state.isHost);
 }
 
 function resetScores() {
@@ -180,56 +182,25 @@ function resetPlayers() {
 
 function resetTurn() {
   state.turn = 1;
-  updateTurnIndicator();
+  UI.updateTurnIndicator(state.turn, TOTAL_TURNS);
 }
 
 function resetLog() {
   state.log = [];
-  renderLog();
+  UI.renderLog(state.log);
 }
 
-function updateScores({ charm, oji, total }) {
-  if (scoreCharm) scoreCharm.textContent = String(charm ?? 0);
-  if (scoreOji) scoreOji.textContent = String(oji ?? 0);
-  const fallbackTotal = (charm ?? 0) + (oji ?? 0);
-  if (scoreTotal) scoreTotal.textContent = String(total ?? fallbackTotal);
-}
-
-function updateTurnIndicator() {
-  if (!turnLabel) return;
-  turnLabel.textContent = `ターン ${state.turn} / ${TOTAL_TURNS}`;
-}
-
-function updateDeckCounts(selfCount = 0, oppCount = 0) {
-  if (deckSelfCount) deckSelfCount.textContent = String(selfCount);
-  if (deckOpponentCount) deckOpponentCount.textContent = String(oppCount);
-}
+// moved to UI: updateScores/updateTurnIndicator/updateDeckCounts
 
 function pushLog(entry) {
   state.log.unshift(entry);
   if (state.log.length > 12) {
     state.log.length = 12;
   }
-  renderLog();
+  UI.renderLog(state.log);
 }
 
-function renderLog() {
-  if (!actionLog) return;
-  if (state.log.length === 0) {
-    actionLog.innerHTML = '<div class="log-entry">まだ行動がありません</div>';
-    return;
-  }
-
-  actionLog.innerHTML = state.log
-    .map(({ type, message, at }) => {
-      const time = new Date(at).toLocaleTimeString('ja-JP', {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-      return `<div class="log-entry action-${type}"><span>${message}</span><time>${time}</time></div>`;
-    })
-    .join('');
-}
+// moved to UI: renderLog
 
 function watchConnection() {
   if (!ablyClient || hasConnectionWatcher) return;
@@ -239,7 +210,7 @@ function watchConnection() {
       ? ` (reason: ${change.reason.code ?? ''} ${change.reason.message ?? ''})`
       : '';
     logAction('network', `接続状態: ${change.previous} → ${change.current}${reason}`);
-    updateStartUI();
+    UI.updateStartUI(state.isHost);
   });
   // 自端末の clientId をメンバーに追加（connected 時）
   ablyClient.connection.once('connected', () => {
@@ -293,7 +264,7 @@ function handleStartMessage(message) {
       handsById: {},
     };
   }
-  updateStartUI();
+  UI.updateStartUI(state.isHost);
   setNotice('');
 }
 
@@ -335,13 +306,13 @@ function applyStateSnapshot(snapshot) {
     ? (round || 1)
     : ((myTurn || roundHalf === 1) ? (round || 1) : Math.max(1, (round || 1) - 1));
   state.turn = displayRound;
-  updateTurnIndicator();
+  UI.updateTurnIndicator(state.turn, TOTAL_TURNS);
   state.isMyTurn = !!myTurn;
 
     // 山札枚数（あれば表示）
     const selfDeck = Number.isFinite(me?.deckCount) ? me.deckCount : 0;
     const oppDeck = Number.isFinite(opp?.deckCount) ? opp.deckCount : 0;
-    updateDeckCounts(selfDeck, oppDeck);
+    UI.updateDeckCounts(selfDeck, oppDeck);
 
     // スコアは自分のものを優先して表示（なければ 0 ）
     const myScores = me?.scores ?? { charm: 0, oji: 0, total: undefined };
@@ -350,7 +321,7 @@ function applyStateSnapshot(snapshot) {
       oji: Number.isFinite(myScores.oji) ? myScores.oji : 0,
       total: Number.isFinite(myScores.total) ? myScores.total : undefined,
     };
-    updateScores(state.scores);
+    UI.updateScores(state.scores);
 
     // 盤面・手札
     if (me) {
@@ -369,7 +340,7 @@ function applyStateSnapshot(snapshot) {
           : { humans: [] },
       };
     }
-    renderGame();
+    UI.renderGame(state);
 
     // ログ強化: 直近アクションのカード名を明示
     const la = snapshot?.lastAction;
@@ -609,75 +580,14 @@ function detachRealtime() {
   state.isHost = false;
   state.members = [];
   state.hostGame = null;
-  updateStartUI();
+  UI.updateStartUI(state.isHost);
 }
 
 // dev-only advanceTurn removed
 
 // adjustScores は move のホスト処理に置き換わったため削除
 
-function clearContainer(target) {
-  if (!target) return;
-  target.innerHTML = '';
-}
-
-function renderHand(target, cards, mask = false) {
-  if (!target) return;
-  clearContainer(target);
-  cards.forEach((card) => {
-    const cardEl = document.createElement('div');
-    cardEl.className = `card card-${card.type}${mask ? ' masked' : ''}`;
-    cardEl.textContent = mask ? '？？？' : card.name;
-    if (!mask) {
-      cardEl.dataset.cardId = card.id;
-      cardEl.dataset.cardType = card.type || '';
-      cardEl.dataset.cardName = card.name || '';
-    }
-    target.appendChild(cardEl);
-  });
-}
-
-function renderField(target, field) {
-  if (!target) return;
-  clearContainer(target);
-  field.humans.forEach((human) => {
-    const humanEl = document.createElement('div');
-    humanEl.className = 'field-human';
-
-    const cardEl = document.createElement('div');
-    cardEl.className = 'field-human-card';
-    cardEl.textContent = human.name;
-    humanEl.appendChild(cardEl);
-
-    const decorationsWrap = document.createElement('div');
-    decorationsWrap.className = 'field-human-decorations';
-    const decorations = human.decorations ?? [];
-    for (let i = 0; i < MAX_DECORATIONS_PER_HUMAN; i += 1) {
-      const decoration = decorations[i];
-      const slot = document.createElement('div');
-      slot.className = 'decoration-slot';
-      if (decoration) {
-        slot.classList.add('has-decoration');
-        slot.textContent = decoration.name;
-        slot.title = decoration.name;
-      } else {
-        slot.textContent = '＋';
-        slot.title = '空きスロット';
-      }
-      decorationsWrap.appendChild(slot);
-    }
-
-    humanEl.appendChild(decorationsWrap);
-    target.appendChild(humanEl);
-  });
-}
-
-function renderGame() {
-  renderHand(handSelf, state.self.hand, false);
-  renderHand(handOpponent, state.opponent.hand, true);
-  renderField(fieldSelf, state.self.field);
-  renderField(fieldOpponent, state.opponent.field);
-}
+// moved to UI: render helpers
 
 function prepareRoom() {
   resetScores();
@@ -686,50 +596,26 @@ function prepareRoom() {
   resetLog();
   state.started = false;
   state.hostId = null;
-  renderGame();
+  UI.renderGame(state);
   // 開始前はロックしておき、state受信で解放
   lockActions();
-  updateScores(state.scores);
-  updateStartUI();
+  UI.updateScores(state.scores);
+  UI.updateStartUI(state.isHost);
 }
 
 function lockActions() {
   state.actionLocked = true;
-  setActionButtonsDisabled(true);
-  updateHandInteractivity();
+  UI.setActionButtonsDisabled(true);
+  UI.updateHandInteractivity(state.isMyTurn, state.actionLocked);
 }
 
 function unlockActions() {
   state.actionLocked = false;
-  setActionButtonsDisabled(false);
-  updateHandInteractivity();
+  UI.setActionButtonsDisabled(false);
+  UI.updateHandInteractivity(state.isMyTurn, state.actionLocked);
 }
 
-function setActionButtonsDisabled(disabled) {
-  actionButtons.forEach((button) => {
-    if (!button) return;
-    button.disabled = disabled;
-  });
-}
-
-// Enable/disable self hand interactivity based on turn/lock
-function updateHandInteractivity() {
-  if (!handSelf) return;
-  if (state.isMyTurn && !state.actionLocked) handSelf.classList.remove('disabled');
-  else handSelf.classList.add('disabled');
-}
-
-async function copyRoomLink() {
-  if (!state.roomId) return;
-  const url = `${location.origin}/room/${state.roomId}`;
-  try {
-    await navigator.clipboard.writeText(url);
-    alert('招待リンクをコピーしました');
-  } catch (err) {
-    console.warn('Clipboard API unavailable', err);
-    window.prompt('この URL をコピーしてください', url);
-  }
-}
+// copyRoomLink moved to ui/inputs.js
 
 function handleInitialRoute(stateOverride) {
   const roomIdFromState = stateOverride?.roomId;
@@ -814,72 +700,20 @@ async function init() {
     handleInitialRoute(event.state);
   });
 
-  createButton?.addEventListener('click', (event) => {
-    event.preventDefault();
-    const id = generateRoomId();
-    // この端末が部屋を作成した＝Host として扱う（セッション内）
-    state.isHost = true;
-    state.hostId = null; // 接続後の clientId で確定
-    updateStartUI();
-    navigateToRoom(id);
+  bindInputs({
+    onCreateRoom: () => {
+      const id = generateRoomId();
+      // この端末が部屋を作成した＝Host として扱う（セッション内）
+      state.isHost = true;
+      state.hostId = null; // 接続後の clientId で確定
+      UI.updateStartUI(state.isHost);
+      navigateToRoom(id);
+    },
+    getRoomId: () => state.roomId,
+    state,
+    logButtonAction,
+    publishMove,
   });
-
-  copyButton?.addEventListener('click', copyRoomLink);
-
-  // 手札クリック（自分の手札のみ）
-  handSelf?.addEventListener('click', (ev) => {
-    const target = ev.target;
-    if (!(target instanceof HTMLElement)) return;
-    if (!target.classList.contains('card')) return;
-    if (!state.isMyTurn || state.actionLocked) return;
-    const cardId = target.dataset.cardId;
-    const cardType = target.dataset.cardType;
-    const cardName = target.dataset.cardName || '';
-    if (!cardId) return;
-    // 最小実装: human はクリックで召喚（確認付き）
-    if (cardType === 'human') {
-      const ok = window.confirm(`このカードを召喚しますか？\n${cardName}`);
-      if (!ok) return;
-      const action = logButtonAction('summon', `召喚：${cardName}`, () => {
-        void publishMove({ action: 'summon', cardId });
-      });
-      action();
-    } else if (cardType === 'decoration') {
-      const hasSlot = Array.isArray(state.self?.field?.humans)
-        && state.self.field.humans.some((h) => Array.isArray(h?.decorations) ? h.decorations.length < MAX_DECORATIONS_PER_HUMAN : true);
-      if (!hasSlot) {
-        alert('装飾を付けられる人がいません（先に召喚するか、空き枠を確保してください）');
-        return;
-      }
-      const ok = window.confirm(`この装飾を装備しますか？（空き枠のある人に付与）\n${cardName}`);
-      if (!ok) return;
-      const action = logButtonAction('decorate', `装飾：${cardName}`, () => {
-        void publishMove({ action: 'decorate', cardId });
-      });
-      action();
-    } else if (cardType === 'action') {
-      // クライアント側ガード：場に人間がいなければ使えない
-      const hasSelfHuman = Array.isArray(state.self?.field?.humans) && state.self.field.humans.length > 0;
-      if (!hasSelfHuman) {
-        alert('ムーブを使う前に、人間を召喚してください');
-        return;
-      }
-      const ok = window.confirm(`このムーブを使いますか？\n${cardName}`);
-      if (!ok) return;
-      const action = logButtonAction('play', `ムーブ：${cardName}`, () => {
-        void publishMove({ action: 'play', cardId });
-      });
-      action();
-    }
-  });
-
-  // 港区女子っぽいスキップ（今回は様子見）
-  document.getElementById('action-skip')?.addEventListener(
-    'click',
-    logButtonAction('skip', 'このターンは様子見', () => {
-      void publishMove({ action: 'skip' });
-    }),
-  );
 
   // Startボタンは廃止（自動開始）
   // 下部の装飾ボタンは廃止（手札クリックで装飾）
@@ -887,13 +721,7 @@ async function init() {
 
 }
 
-function updateStartUI() {
-  // 招待リンクコピーは Host のみ表示
-  if (copyButton) {
-    if (state.isHost) copyButton.removeAttribute('hidden');
-    else copyButton.setAttribute('hidden', '');
-  }
-}
+// updateStartUI moved to UI.updateStartUI
 
 function ensureStarted() {
   if (!ablyClient || ablyClient.connection?.state !== 'connected') return;
