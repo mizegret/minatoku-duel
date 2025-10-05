@@ -306,7 +306,6 @@ function handleMoveMessage(message) {
 
 function handleStateMessage(message) {
   const snapshot = message?.data ?? {};
-  logAction('state', `state 受信: round=${snapshot.round ?? '?'} phase=${snapshot.phase ?? 'unknown'}`);
   applyStateSnapshot(snapshot);
 }
 
