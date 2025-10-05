@@ -96,7 +96,10 @@ export function handleMoveMessage(message, ctx) {
     const { card: humanCard, index } = popFirstByIdOrType(hand, { cardId: data.cardId, type: 'human' });
     if (humanCard) {
       if (humanCard?.type === 'human') {
-        field.humans.push({ id: humanCard.id, name: humanCard.name, decorations: [] });
+        // M2: save-only — keep baseCharm on field entity (no scoring change)
+        const humanOnField = { id: humanCard.id, name: humanCard.name, decorations: [] };
+        if (Number.isFinite(humanCard?.baseCharm)) humanOnField.baseCharm = Number(humanCard.baseCharm);
+        field.humans.push(humanOnField);
         logAction?.('event', `summon: ${humanCard.name}`);
         lastAction.cardName = humanCard.name;
         // fixed MVP scoring (existing behavior)
