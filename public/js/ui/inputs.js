@@ -43,7 +43,29 @@ export function bindInputs(ctx) {
     const cardName = target.dataset.cardName || '';
     if (!cardId) return;
     if (cardType === 'human') {
-      const ok = window.confirm(`このカードを召喚しますか？\n${cardName}`);
+      // enrich confirm with human details (rarity/age/baseCharm/skills text)
+      let extra = '';
+      try {
+        const human = (state.cardsByType?.humans || []).find((h) => h?.id === cardId);
+        if (human) {
+          const rarity = human.rarity ? ` [${String(human.rarity).toUpperCase()}]` : '';
+          const age = Number.isFinite(human.age) ? ` 年齢:${human.age}` : '';
+          const base = Number.isFinite(human.baseCharm) && human.baseCharm > 0 ? ` 基礎魅力:+${human.baseCharm}` : '';
+          const header = `${cardName}${rarity}${age}${base}`.trim();
+          const skills = Array.isArray(human.skills) ? human.skills : [];
+          const skillLines = skills.slice(0, 2).map((s) => {
+            const n = s?.name ? String(s.name) : '';
+            const t = s?.text ? String(s.text) : '';
+            if (n && t) return `・${n}: ${t}`;
+            if (n) return `・${n}`;
+            if (t) return `・${t}`;
+            return '';
+          }).filter(Boolean);
+          const skillBlock = skillLines.length ? `\n\nスキル\n${skillLines.join('\n')}` : '';
+          extra = `\n${header}${skillBlock}`;
+        }
+      } catch {}
+      const ok = window.confirm(`このカードを召喚しますか？${extra || `\n${cardName}`}`);
       if (!ok) return;
       const action = logButtonAction(ACTIONS.summon, `召喚：${cardName}`, () => {
         void publishMove({ action: ACTIONS.summon, cardId });
