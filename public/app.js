@@ -223,13 +223,6 @@ function pushLog(entry) {
   setState({ log: next });
 }
 
-function replaceTopLog(entry) {
-  const next = Array.isArray(state.log) ? state.log.slice() : [];
-  if (next.length === 0) { pushLog(entry); return; }
-  next[0] = entry;
-  setState({ log: next });
-}
-
 // Compute displayed round number based on phase/half/turn owner (A3)
 function computeDisplayRound({ phase, round, myTurn, roundHalf }) {
   const r = Number.isFinite(round) ? round : state.turn;
@@ -376,8 +369,7 @@ function applyStateSnapshot(snapshot) {
     }
     UI.renderGame(state);
 
-    // 通知とアクション制御
-    setNotice('');
+    // 通知とアクション制御（バナーは常に現在のターン状態を表示）
     if (phase === 'ended' || phase === 'game-over' || round > TOTAL_TURNS) {
       lockActions();
       // Endgame summary (winner/draw)
@@ -400,9 +392,9 @@ function applyStateSnapshot(snapshot) {
       }
     } else if (myTurn) {
       unlockActions();
-      setNotice('');
+      setNotice(`あなたのターン!!`);
       const turnKey = `turn:${round}:${turnOwner || ''}`;
-      if (shouldLog('turnMsg', turnKey)) logAction('state', `あなたのターン（ラウンド ${displayRound}）`);
+      if (shouldLog('turnMsg', turnKey)) logAction('event', `あなたのターン（ラウンド ${displayRound}）`);
       // skills: show start-of-turn deltas right after the turn message
       const ts = snapshot?.turnStart;
       if (ts && (Number.isFinite(ts.charm) || Number.isFinite(ts.oji))) {
@@ -417,8 +409,9 @@ function applyStateSnapshot(snapshot) {
     } else {
       lockActions();
       if (turnOwner) {
-        setNotice('');
         setNotice('相手のターンです…');
+        const oppTurnKey = `turn:${round}:${turnOwner || ''}`;
+        if (shouldLog('turnMsg', oppTurnKey)) logAction('event', '相手のターンです…');
         // optionally log opponent start-of-turn skills as well
         const ts = snapshot?.turnStart;
         if (ts && (Number.isFinite(ts.charm) || Number.isFinite(ts.oji))) {
@@ -456,7 +449,7 @@ function applyStateSnapshot(snapshot) {
       }
     }
 
-    logAction('state', '盤面を同期しました');
+    // omit verbose state log
   } catch (e) {
     console.warn('[state] failed to apply snapshot', e);
     logAction('state', 'スナップショット適用に失敗しました');
