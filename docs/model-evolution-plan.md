@@ -55,11 +55,11 @@
   - 受け入れ: スコア加算は従来どおり（+1固定）。表示・ログは不変。
   - 影響: `public/js/game/host.js`（commit: 90b0048）
 
-- [ ] [M3] スコア集計器の追加（裏取りのみ）
-  - 目的: 「人/装飾/行動」から合計スコアを純関数で算出できる基盤作成。
-  - 変更: `computeScoresFromField(field)` を新設（`utils/score.js`）。今は集計結果をログに出すだけ（差し替えはまだしない）。
-  - 受け入れ: Host配信スコアと集計器の結果が一致することをログで確認（不一致はwarn）。
-  - 影響: `public/js/utils/score.js`（新規）, `public/js/game/host.js`（呼び出し）
+- [x] [M3] スコア集計器の追加（裏取りのみ）
+  - 目的: 「人/装飾/行動（現行分）」から合計スコアを純関数＋累積デルタで再計算し、整合性を確認。
+  - 変更: `public/js/utils/score.js` に `buildCardIndex/scoreField` を追加。host 側に `_actionDeltasById` を導入し、`play` の基礎+効果を累積（逐次 clamp）。毎ターン、`fieldScore + actionDeltas` と実スコアを比較し `console.warn` で通知。
+  - 受け入れ: UI/通信/表示ログは不変。コンソールにのみ検証結果を出力。不一致は `warn` のみ。
+  - 影響: `public/js/utils/score.js`（新規）, `public/js/game/host.js`（集計呼び出し; commit: bfe7ca1）
 
 - [ ] [M4] スコアルール外出し
   - 目的: どのタイミングで何点加算/減算するかを表形式にして切替可能に。
