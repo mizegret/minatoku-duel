@@ -104,7 +104,9 @@ export function handleMoveMessage(message, ctx) {
       if (humanCard?.type === 'human') {
         // M2: save-only — keep baseCharm on field entity (no scoring change)
         const humanOnField = { id: humanCard.id, name: humanCard.name, decorations: [] };
-        if (Number.isFinite(humanCard?.baseCharm)) humanOnField.baseCharm = Number(humanCard.baseCharm);
+        if (Number.isFinite(humanCard?.baseCharm) && Number(humanCard.baseCharm) > 0) {
+          humanOnField.baseCharm = Number(humanCard.baseCharm);
+        }
         field.humans.push(humanOnField);
         logAction?.('event', `summon: ${humanCard.name}`);
         lastAction.cardName = humanCard.name;

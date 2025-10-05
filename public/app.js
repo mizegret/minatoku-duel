@@ -85,8 +85,8 @@ async function loadCards() {
         };
         // M5: light validation + safe defaults (warn-only; behavior unchanged)
         if (!Number.isFinite(h.baseCharm)) {
-          h.baseCharm = 0; // save-only; not used yet
-          console.warn('[cards][validate] human.baseCharm missing; default 0', h.id);
+          // leave undefined so legacy cards fall back to defaultCharm via SCORE_RULES
+          console.warn('[cards][validate] human.baseCharm missing; using rule default (no field write)', h.id);
         }
         const R = String(h.rarity || '').toUpperCase();
         const okR = R === 'UR' || R === 'SR' || R === 'R' || R === 'N';

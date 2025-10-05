@@ -27,8 +27,9 @@ export function scoreField(field, cardsById) {
   // humans: base per rules (default +1; use baseCharm when enabled)
   for (const h of humans) {
     const useBase = !!SCORE_RULES?.summon?.useBaseCharm;
-    const base = useBase && Number.isFinite(h?.baseCharm)
-      ? Number(h.baseCharm)
+    const bc = Number(h?.baseCharm);
+    const base = (useBase && Number.isFinite(bc) && bc > 0)
+      ? bc
       : Number(SCORE_RULES?.summon?.defaultCharm ?? 1);
     result.charm += base;
   }
