@@ -232,6 +232,7 @@ export function handleMoveMessage(message, ctx) {
   }
 
   game.round = round;
+  let turnStartInfo = null;
 
   // Turn start skills for the next turn owner (minimal: self add only)
   if (phase !== 'ended') {
@@ -261,10 +262,7 @@ export function handleMoveMessage(message, ctx) {
         }
       }
       if (tCharm || tOji) {
-        const parts = [];
-        if (tCharm) parts.push(`魅力+${tCharm}`);
-        if (tOji) parts.push(`好感度+${tOji}`);
-        logAction?.('event', `スキル発動（開始時）: ${parts.join(' / ')}`);
+        turnStartInfo = { actorId: pid, charm: tCharm || 0, oji: tOji || 0 };
       }
     } catch {}
 
@@ -286,5 +284,5 @@ export function handleMoveMessage(message, ctx) {
   } catch {}
 
   const players = buildPlayers(game, members2);
-  publishState({ round, turnOwner: game.turnOwner, players, phase, roundHalf: game.half, lastAction });
+  publishState({ round, turnOwner: game.turnOwner, players, phase, roundHalf: game.half, lastAction, turnStart: turnStartInfo });
 }

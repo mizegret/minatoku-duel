@@ -380,10 +380,26 @@ function applyStateSnapshot(snapshot) {
     } else if (myTurn) {
       unlockActions();
       logAction('state', `あなたのターン（ラウンド ${displayRound}）`);
+      // skills: show start-of-turn deltas right after the turn message
+      const ts = snapshot?.turnStart;
+      if (ts && (Number.isFinite(ts.charm) || Number.isFinite(ts.oji))) {
+        const parts = [];
+        if (Number.isFinite(ts.charm) && ts.charm) parts.push(`魅力+${ts.charm}`);
+        if (Number.isFinite(ts.oji) && ts.oji) parts.push(`好感度+${ts.oji}`);
+        if (parts.length) logAction('event', `あなた：スキル発動（開始時） ${parts.join(' / ')}`);
+      }
     } else {
       lockActions();
       if (turnOwner) {
         setNotice('相手のターンです…');
+        // optionally log opponent start-of-turn skills as well
+        const ts = snapshot?.turnStart;
+        if (ts && (Number.isFinite(ts.charm) || Number.isFinite(ts.oji))) {
+          const parts = [];
+          if (Number.isFinite(ts.charm) && ts.charm) parts.push(`魅力+${ts.charm}`);
+          if (Number.isFinite(ts.oji) && ts.oji) parts.push(`好感度+${ts.oji}`);
+          if (parts.length) logAction('event', `相手：スキル発動（開始時） ${parts.join(' / ')}`);
+        }
       }
     }
 
