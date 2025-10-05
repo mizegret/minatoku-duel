@@ -28,27 +28,30 @@
 
 ## タスク一覧（チェックリスト）
 
-- [ ] [M0] カードスキーマの検討/設計（ドラフト）
-  - 目的: 今後の拡張（人間の年齢/基礎魅力/専用スキル/フレーバー等）を過不足なく表現できるスキーマを定義。
-  - 成果物: `docs/cards-schema.md`（JSON構造のドラフト／必須・任意項目／型／制約）、`public/cards.example.json`（サンプル）
-  - 項目案:
-    - 共通: `id:string`, `name:string`, `type:'human'|'decoration'|'action'`, `rarity?:string`, `tags?:string[]`, `flavor?:string|string[]`
-    - human: `age?:number`, `baseCharm?:number`, `baseOji?:number`, `skills?: Skill[]`
-    - decoration: `charm?:number`, `oji?:number`, `slotsUsed?:number`
-    - action: `effect?: Effect[]`（既存の `op/stat/target/value` 構造を明確化）
-  - 受け入れ: 既存cards.jsonを包含（後方互換）。不足項目は検討課題としてTODO列挙。Node導入なしで運用可能な範囲に留める。
-  - 影響: ドキュメントのみ（実装変更はM1以降）。
+- [x] [M0] カードスキーマの合意（ドキュメントのみ・挙動不変）
+  - 目的: 仕様が未確定でも先に“器”を固定し、言葉/必須項目/表現ルールを整える。
+  - 合意内容（抜粋）: `docs/cards-schema.md`, `public/cards.example.json`
+    - 共通: `id/name/type` のみ必須（`id` 形式推奨: `^[a-z0-9_-]{1,32}$`）。
+    - human（必須）: `age`（仮: 20–35 TODO調整）, `rarity`（UR/SR/R/N）, `baseCharm`, `imageUrl`。
+      - `skills[]`: 保持のみ。`triggers`（onTurnStart/End/Summon）, `effects`（op:add）。`text` は“理由”を含む世界観文を必須。
+    - decoration（必須）: `rarity`, `text`（理由必須）, `imageUrl`, `charmBonus`（増分名）。互換のため `charm` も当面併記可。`slotsUsed`=1（予約）。
+    - action（必須）: `rarity`, `text`（理由必須）, `imageUrl`, `effect[]`。
+    - 表示ガイド: rarity→色パレット（UR:金/SR:紫/R:青/N:灰）。画像パス規約 `/assets/cards/<type>/<id>.webp`。
+  - サンプル: `cards.example.json` を 5/10/5 で整備（世界観テキスト含む）。
+  - 影響: 実装は未変更（挙動不変）。
 
-- [ ] [M1] カードスキーマの先取り拡張（人間）
-  - 目的: 今後の要件（年齢/基礎魅力/スキル/フレーバー）を受け止められる器を用意。
-  - 変更: `loadCards()` で human の拡張キーをそのまま保持（UI/スコアでは未使用）。
-  - 項目案（全部任意）: `age:number`, `baseCharm:number`, `skills: string[]`, `flavor:string | string[]`。
-  - 受け入れ: ロードログ/送受信/stateに破壊的変化なし。従来のcards.jsonでも動作。
-  - 影響: `public/app.js:loadCards`
+- [x] [M1] カード拡張の“保持のみ”実装（挙動不変）
+  - 目的: M0合意のフィールドをランタイムの state に「保持」できるようにする（UI/計算未使用）。
+  - 変更: `public/app.js:loadCards()` が以下を保持。
+    - human: `age/rarity/baseCharm/baseOji/imageUrl/skills`（旧 `charm/oji` は互換で維持）
+    - decoration: `rarity/text/imageUrl/charmBonus/slotsUsed`（`charm` も互換で維持）
+    - action: `rarity/text/imageUrl/effect[]`
+  - 受け入れ: 既存 `cards.json` でも動作。表示/通信/ログ/スコアの順序・文言は完全一致。
+  - 影響: `public/app.js:loadCards`（commit: 9e0ce5b）
 
 - [ ] [M2] 場の人間に基礎魅力を保持（保存のみ）
   - 目的: 召喚時に human 情報を場へ正しく投影できるように。
-  - 変更: host側 `summon` で `field.humans.push({ id, name, baseCharm, decorations: [] })` に拡張。
+  - 変更: host側 `summon` で `field.humans.push({ id, name, baseCharm, decorations: [] })` に拡張（保存のみ）。
   - 受け入れ: スコア加算は従来どおり（+1固定）。表示・ログは不変。
   - 影響: `public/js/game/host.js`
 
@@ -101,11 +104,11 @@
 ---
 
 ## オープンクエスチョン（確認事項）
-1. 勝敗の同点裁定は「場の人間数が多い方 → 先攻側敗北（現行踏襲）」で良いか？
-2. 座席数（同時に着席できる人数の上限）は当面3で良いか？（将来可変）
-3. humanの拡張項目（age/baseCharm/baseOji/skills/flavor）の初期値運用（未指定時は無効/0/空配列）でOKか？
-4. オジの嗜好（preferences）は先取りで器だけ持ち、当面ニュートラル（補正0）で良いか？
-5. scoreRulesの初期テーブルは「現行結果と一致（=baseCharmを未使用扱い）」で開始してOKか？
+1. humanの年齢レンジの最終確定（仮: 20–35）。飲酒表現とトーンに合わせ最終決定。
+2. rarity→色パレットの最終色コード（現行はガイド）。
+3. skills.conditions の最小セット（allyPresent/alliesPresent の他に必要な条件）。
+4. decoration の `charm` → `charmBonus` への完全移行タイミング（互換維持期間の方針）。
+5. 画像アセットの実配置/最適化ルール（変換・圧縮・命名規則）。
 
 ---
 
@@ -114,3 +117,5 @@
 - 座席数（上限）: 当面は3席（定数 `MAX_SEATS = 3` として扱い、将来可変）。
 - オジ preferences: いまは導入しない（器の先取りも保留）。
 - SCORE_RULES: 導入する（A）。初期設定は現行の結果と完全一致（= baseCharm は当面未使用）。実装タイミングは M4 で行うが、M3 完了後できるだけ早めに適用。
+ - M0 スキーマ合意: human/decoration/action の必須項目、skills/text(理由)/imageUrl、charmBonus 名称、rarityパレット、アセット配置規約。
+ - M1 実装合意: `loadCards()` で拡張フィールドを保持（UI/通信/スコアは未使用のまま）。
