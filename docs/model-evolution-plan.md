@@ -84,10 +84,11 @@
   - 受け入れ: 現挙動不変（seed未使用）。
   - 影響: `public/js/game/host.js`（commit: 32f4a63）
 
-- [ ] [SWITCH] スコア計算の切替（仕様変更タイミング）
+- [x] [SWITCH] スコア計算の切替（仕様変更タイミング）
   - 条件: M1〜M4が安定し、集計器の結果が十分に信用できること。
-  - 変更: `summon/decorate/play` の加点を「場/カード起点の計算へ」切替。
-  - 受け入れ: ルールの新仕様に基づくスコア・ログが期待通りになること。
+  - 変更: `summon/decorate/play` の加点を「場/カード起点の計算（+累積アクション）」へ切替。毎手後に `score(field) + deltas` を真値として `scoresById` を再構成。
+  - 受け入れ: 体感挙動は不変（結果は従来と一致）。UI/通信/ログ順序も不変。
+  - 影響: `public/js/game/host.js`（commit: 5fb39a0）
 
 ---
 
