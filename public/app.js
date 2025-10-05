@@ -475,11 +475,12 @@ async function publishMove(move = {}) {
 }
 
 async function publishState(snapshot = {}) {
+  // Merge defaults with provided snapshot; allow caller (host) to override and add extra fields
   const enriched = {
-    phase: snapshot.phase ?? 'in-round',
-    round: snapshot.round ?? state.turn,
-    turnOwner: snapshot.turnOwner ?? getClientId(),
-    players: snapshot.players ?? [
+    phase: 'in-round',
+    round: state.turn,
+    turnOwner: getClientId(),
+    players: [
       {
         clientId: getClientId(),
         hand: state.self?.hand ?? [],
@@ -487,8 +488,9 @@ async function publishState(snapshot = {}) {
         scores: state.scores ?? { charm: 0, oji: 0, total: 0 },
       },
     ],
-    log: snapshot.log ?? state.log.slice(-5),
+    log: state.log.slice(-5),
     updatedAt: Date.now(),
+    ...snapshot,
   };
   if (!netHandle?.publishState) return;
   await netHandle.publishState(enriched);
