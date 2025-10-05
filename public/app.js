@@ -372,18 +372,10 @@ function applyStateSnapshot(snapshot) {
     const la = snapshot?.lastAction;
     if (la && la.type) {
       const actorIsMe = !!(la.actorId && la.actorId === myId);
-      const actorLabel = actorIsMe ? 'あなた' : '相手';
-      const msg = formatLastAction(la, actorLabel);
-      if (msg) {
-        // de-dup: if my immediate previous local log was a button action within 1.5s, replace it
-        const top = Array.isArray(state.log) ? state.log[0] : null;
-        const isLocalAction = top && (top.type === ACTIONS.summon || top.type === ACTIONS.decorate || top.type === ACTIONS.play || top.type === ACTIONS.skip);
-        const recent = top && typeof top.at === 'number' ? (Date.now() - top.at) <= 1500 : false;
-        if (actorIsMe && isLocalAction && recent) {
-          replaceTopLog({ type: 'move', message: msg, at: Date.now() });
-        } else {
-          logAction('move', msg);
-        }
+      if (!actorIsMe) {
+        const actorLabel = '相手';
+        const msg = formatLastAction(la, actorLabel);
+        if (msg) logAction('move', msg);
       }
     } else {
       // 最小実装: 受信確認
