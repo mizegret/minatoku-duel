@@ -4,6 +4,7 @@ import { ensureStarted as hostEnsureStarted, handleMoveMessage as hostHandleMove
 import * as UI from './js/ui/render.js';
 import { bindInputs } from './js/ui/inputs.js';
 import * as Net from './js/net/ably.js';
+import { state, setState, addMember } from './js/state.js';
 
 const lobbySection = document.getElementById('screen-lobby');
 const roomSection = document.getElementById('screen-room');
@@ -33,29 +34,6 @@ const IS_LOCAL = ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(location.
 
 // Networking is handled inside Net (see js/net/ably.js)
 
-const state = {
-  roomId: null,
-  scores: {
-    charm: 0,
-    oji: 0,
-    total: 0,
-  },
-  self: { hand: [], field: { humans: [] } },
-  opponent: { hand: [], field: { humans: [] } },
-  actionLocked: false,
-  env: null,
-  turn: 1,
-  log: [],
-  hostId: null,
-  isHost: false,
-  started: false,
-  isMyTurn: false,
-  // move 実装向け（最小）
-  members: [], // 参加クライアントIDの簡易一覧
-  hostGame: null, // Host のみ保持する権威側のスコア・ターン
-  cardsByType: null,
-};
-
 function generateRoomId() {
   const raw = crypto.randomUUID().replace(/-/g, '').slice(0, 8);
   return raw.toLowerCase();
@@ -78,7 +56,7 @@ async function loadEnvironment() {
   for (const source of sources) {
     try {
       const env = await fetchJson(source);
-      state.env = env;
+      setState({ env });
       console.info('[env] loaded from', source, Object.keys(env));
       return;
     } catch (error) {
@@ -86,7 +64,7 @@ async function loadEnvironment() {
     }
   }
 
-  state.env = null;
+  setState({ env: null });
 }
 
 async function loadCards() {
@@ -113,15 +91,15 @@ async function loadCards() {
       else if (item.type === 'action') actions.push(item);
       // それ以外の type は無視（MVP）
     }
-    state.cardsByType = { humans, decorations, actions };
+    setState({ cardsByType: { humans, decorations, actions } });
     console.info('[cards] loaded (new schema)', { humans: humans.length, decorations: decorations.length, actions: actions.length });
   } catch (e) {
     console.warn('[cards] failed to load (new schema required), using defaults', e);
-    state.cardsByType = {
+    setState({ cardsByType: {
       humans: [{ id: 'human-default', name: '港区女子（仮）', type: 'human' }],
       decorations: [{ id: 'deco-default', name: 'シャンパン（仮）', type: 'decoration' }],
       actions: [{ id: 'act-default', name: 'アクション（仮）', type: 'action' }],
-    };
+    }});
   }
 }
 
@@ -166,22 +144,17 @@ function showRoom(roomId) {
   UI.updateStartUI(state.isHost);
 }
 
-function resetScores() {
-  state.scores = { charm: 0, oji: 0, total: 0 };
-}
+function resetScores() { setState({ scores: { charm: 0, oji: 0, total: 0 } }); }
 
-function resetPlayers() {
-  state.self = { hand: [], field: { humans: [] } };
-  state.opponent = { hand: [], field: { humans: [] } };
-}
+function resetPlayers() { setState({ self: { hand: [], field: { humans: [] } }, opponent: { hand: [], field: { humans: [] } } }); }
 
 function resetTurn() {
-  state.turn = 1;
+  setState({ turn: 1 });
   UI.updateTurnIndicator(state.turn, TOTAL_TURNS);
 }
 
 function resetLog() {
-  state.log = [];
+  setState({ log: [] });
   UI.renderLog(state.log);
 }
 
@@ -213,9 +186,8 @@ function handleJoinMessage(message) {
 function handleStartMessage(message) {
   const data = message?.data ?? {};
   logAction('event', `start 受信: host=${data.hostId ?? 'unknown'} members=${Array.isArray(data.members) ? data.members.length : 0}`);
-  state.hostId = data.hostId ?? null;
-  state.isHost = !!state.hostId && state.hostId === getClientId();
-  state.started = true;
+  setState({ hostId: data.hostId ?? null });
+  setState({ isHost: !!(data.hostId ?? null) && (data.hostId === getClientId()), started: true });
   // Host 側では、既に ensureStarted() で配布済みの hands/decks を保持する。
   // ここでの再初期化は行わない（上書きすると手札が消える）。
   if (state.isHost && !state.hostGame) {
@@ -271,9 +243,9 @@ function applyStateSnapshot(snapshot) {
   const displayRound = (phase === 'ended')
     ? (round || 1)
     : ((myTurn || roundHalf === 1) ? (round || 1) : Math.max(1, (round || 1) - 1));
-  state.turn = displayRound;
+  setState({ turn: displayRound });
   UI.updateTurnIndicator(state.turn, TOTAL_TURNS);
-  state.isMyTurn = !!myTurn;
+  setState({ isMyTurn: !!myTurn });
 
     // 山札枚数（あれば表示）
     const selfDeck = Number.isFinite(me?.deckCount) ? me.deckCount : 0;
@@ -282,29 +254,31 @@ function applyStateSnapshot(snapshot) {
 
     // スコアは自分のものを優先して表示（なければ 0 ）
     const myScores = me?.scores ?? { charm: 0, oji: 0, total: undefined };
-    state.scores = {
-      charm: Number.isFinite(myScores.charm) ? myScores.charm : 0,
-      oji: Number.isFinite(myScores.oji) ? myScores.oji : 0,
-      total: Number.isFinite(myScores.total) ? myScores.total : undefined,
-    };
+    setState({
+      scores: {
+        charm: Number.isFinite(myScores.charm) ? myScores.charm : 0,
+        oji: Number.isFinite(myScores.oji) ? myScores.oji : 0,
+        total: Number.isFinite(myScores.total) ? myScores.total : undefined,
+      },
+    });
     UI.updateScores(state.scores);
 
     // 盤面・手札
     if (me) {
-      state.self = {
+      setState({ self: {
         hand: Array.isArray(me.hand) ? me.hand : [],
         field: me.field && Array.isArray(me.field?.humans)
           ? { humans: me.field.humans }
           : { humans: [] },
-      };
+      }});
     }
     if (opp) {
-      state.opponent = {
+      setState({ opponent: {
         hand: Array.isArray(opp.hand) ? opp.hand : [],
         field: opp.field && Array.isArray(opp.field?.humans)
           ? { humans: opp.field.humans }
           : { humans: [] },
-      };
+      }});
     }
     UI.renderGame(state);
 
@@ -446,8 +420,7 @@ function prepareRoom() {
   resetPlayers();
   resetTurn();
   resetLog();
-  state.started = false;
-  state.hostId = null;
+  setState({ started: false, hostId: null });
   UI.renderGame(state);
   // 開始前はロックしておき、state受信で解放
   lockActions();
@@ -456,13 +429,13 @@ function prepareRoom() {
 }
 
 function lockActions() {
-  state.actionLocked = true;
+  setState({ actionLocked: true });
   UI.setActionButtonsDisabled(true);
   UI.updateHandInteractivity(state.isMyTurn, state.actionLocked);
 }
 
 function unlockActions() {
-  state.actionLocked = false;
+  setState({ actionLocked: false });
   UI.setActionButtonsDisabled(false);
   UI.updateHandInteractivity(state.isMyTurn, state.actionLocked);
 }
@@ -512,11 +485,7 @@ function logButtonAction(type, message, callback) {
 }
 
 // --- minimal member helpers ---
-function addMember(clientId) {
-  if (!clientId) return;
-  if (!Array.isArray(state.members)) state.members = [];
-  if (!state.members.includes(clientId)) state.members.push(clientId);
-}
+// addMember moved to js/state.js
 
 function getMembers() {
   if (!Array.isArray(state.members)) return [];
@@ -552,8 +521,7 @@ async function init() {
     onCreateRoom: () => {
       const id = generateRoomId();
       // この端末が部屋を作成した＝Host として扱う（セッション内）
-      state.isHost = true;
-      state.hostId = null; // 接続後の clientId で確定
+      setState({ isHost: true, hostId: null }); // 接続後の clientId で確定
       UI.updateStartUI(state.isHost);
       navigateToRoom(id);
     },
