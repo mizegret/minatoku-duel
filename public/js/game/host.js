@@ -233,8 +233,42 @@ export function handleMoveMessage(message, ctx) {
 
   game.round = round;
 
-  // draw one for next turn owner unless ended
+  // Turn start skills for the next turn owner (minimal: self add only)
   if (phase !== 'ended') {
+    try {
+      const pid = game.turnOwner;
+      const fieldP = game.fieldById?.[pid] ?? { humans: [] };
+      const byId = game._cardsById || buildCardIndex(state.cardsByType);
+      const ensureDelta = (id) => (game._actionDeltasById[id] ||= { charm: 0, oji: 0 });
+      let tCharm = 0; let tOji = 0;
+      for (const h of Array.isArray(fieldP.humans) ? fieldP.humans : []) {
+        const humanDef = h?.id ? byId.get(h.id) : null;
+        const skills = Array.isArray(humanDef?.skills) ? humanDef.skills : [];
+        for (const sk of skills) {
+          const triggers = Array.isArray(sk?.triggers) ? sk.triggers : [];
+          if (!triggers.includes('onTurnStart')) continue;
+          const effects = Array.isArray(sk?.effects) ? sk.effects : [];
+          for (const e of effects) {
+            if (!e || e.op !== 'add') continue;
+            const delta = Number(e.value) || 0;
+            if (!delta) continue;
+            const targetSelf = !e.target || e.target === 'self';
+            if (!targetSelf) continue;
+            const d = ensureDelta(pid);
+            if (e.stat === 'charm') { d.charm = Math.max(0, d.charm + delta); tCharm += delta; }
+            if (e.stat === 'oji') { d.oji = Math.max(0, d.oji + delta); tOji += delta; }
+          }
+        }
+      }
+      if (tCharm || tOji) {
+        const parts = [];
+        if (tCharm) parts.push(`魅力+${tCharm}`);
+        if (tOji) parts.push(`好感度+${tOji}`);
+        logAction?.('event', `スキル発動（開始時）: ${parts.join(' / ')}`);
+      }
+    } catch {}
+
+    // draw one for next turn owner
     drawCard(game.turnOwner, game);
   }
 
