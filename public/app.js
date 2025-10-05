@@ -445,12 +445,13 @@ async function publishStart(members = []) {
     members: members.length ? members : [{ clientId: getClientId() }],
     startedAt: Date.now(),
   };
-  if (netHandle) await netHandle.publishStart(payload); else await Net.publishStart(payload, { logAction });
+  if (!netHandle?.publishStart) return;
+  await netHandle.publishStart(payload);
 }
 
 async function publishMove(move = {}) {
-  if (netHandle) await netHandle.publishMove({ ...move, round: state.turn });
-  else await Net.publishMove({ ...move, round: state.turn }, { logAction });
+  if (!netHandle?.publishMove) return;
+  await netHandle.publishMove({ ...move, round: state.turn });
 }
 
 async function publishState(snapshot = {}) {
@@ -469,7 +470,8 @@ async function publishState(snapshot = {}) {
     log: snapshot.log ?? state.log.slice(-5),
     updatedAt: Date.now(),
   };
-  if (netHandle) await netHandle.publishState(enriched); else await Net.publishState(enriched, { logAction });
+  if (!netHandle?.publishState) return;
+  await netHandle.publishState(enriched);
 }
 
 // detachRealtime was unused; removed

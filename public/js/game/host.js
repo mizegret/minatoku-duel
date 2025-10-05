@@ -27,7 +27,7 @@ export function ensureStarted(ctx) {
     fieldById: {},
     decksById: {},
     handsById: {},
-    _actionDeltasById: {}, // M3: accumulate play() deltas for verification only
+    _actionDeltasById: {}, // accumulate play() deltas; combined with field for final scores
     _cardsById: buildCardIndex(state.cardsByType),
   });
 

@@ -6,9 +6,6 @@
 import { EVENTS } from '../constants.js';
 
 let client = null;
-let channel = null;
-let lastJoinedRoomId = null;
-let subscribed = false;
 let hasConnWatcher = false;
 
 export function hasRealtimeSupport() {
@@ -60,62 +57,7 @@ export function init({ apiKey, clientIdPrefix = 'web-', logAction, onConnectionS
 
 // (deprecated) connect/detach/publishJoin have been removed in favor of createConnection()
 
-export async function publishStart(payload = {}, { logAction } = {}) {
-  if (!channel || !client) return;
-  const base = {
-    roomId: payload.roomId,
-    hostId: client.auth?.clientId ?? null,
-    members: payload.members?.length ? payload.members : [{ clientId: client.auth?.clientId ?? null }],
-    startedAt: Date.now(),
-  };
-  try {
-    logAction?.('network', 'start を送信中…');
-    await channel.publish(EVENTS.start, { ...base, ...payload });
-    logAction?.('network', 'start を送信しました');
-  } catch (err) {
-    const message = err?.code === 40160
-      ? 'start の送信に必要な権限が不足しています'
-      : 'start の送信に失敗しました';
-    logAction?.('network', message);
-  }
-}
-
-export async function publishMove(payload = {}, { logAction } = {}) {
-  if (!channel || !client) return;
-  const base = { clientId: client.auth?.clientId ?? null, round: payload.round ?? undefined };
-  try {
-    logAction?.('network', `move を送信中… (${payload.action})`);
-    await channel.publish(EVENTS.move, { ...base, ...payload });
-    logAction?.('network', 'move を送信しました');
-  } catch (err) {
-    const message = err?.code === 40160
-      ? 'move の送信に必要な権限が不足しています'
-      : 'move の送信に失敗しました';
-    logAction?.('network', message);
-  }
-}
-
-export async function publishState(snapshot = {}, { logAction } = {}) {
-  if (!channel || !client) return;
-  const baseSnapshot = {
-    phase: snapshot.phase ?? 'in-round',
-    round: snapshot.round,
-    turnOwner: snapshot.turnOwner ?? client.auth?.clientId ?? null,
-    players: snapshot.players ?? [],
-    log: snapshot.log ?? [],
-    updatedAt: Date.now(),
-  };
-  try {
-    logAction?.('network', 'state を送信中…');
-    await channel.publish(EVENTS.state, { ...baseSnapshot, ...snapshot });
-    logAction?.('network', 'state を送信しました');
-  } catch (err) {
-    const message = err?.code === 40160
-      ? 'state の送信に必要な権限が不足しています'
-      : 'state の送信に失敗しました';
-    logAction?.('network', message);
-  }
-}
+// top-level publish* helpers removed; use createConnection() handle methods instead
 
 // B2: Factory-style handle that scopes channel state per connection.
 export function createConnection({
