@@ -30,7 +30,8 @@ export const ACTIONS = {
 // SCORE_RULES (M4): externalized scoring table
 // Initial table matches current behavior exactly (no behavior change)
 export const SCORE_RULES = {
-  summon: { charm: 1 },
+  // summon: use baseCharm when available; fallback to 1
+  summon: { useBaseCharm: true, defaultCharm: 1 },
   decorate: {
     useCardCharm: true,      // if true, prefer card.charm; else fallback to defaultCharm
     defaultCharm: 1,

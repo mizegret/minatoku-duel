@@ -4,6 +4,8 @@
 //   - humans: +1 charm each (baseCharm is ignored until SWITCH)
 //   - decorations: +charmBonus or +charm (fallback 1), oji not counted (current behavior)
 
+import { SCORE_RULES } from '../constants.js';
+
 export function buildCardIndex(cardsByType) {
   const byId = new Map();
   if (cardsByType && typeof cardsByType === 'object') {
@@ -22,8 +24,14 @@ export function buildCardIndex(cardsByType) {
 export function scoreField(field, cardsById) {
   const result = { charm: 0, oji: 0, total: 0 };
   const humans = Array.isArray(field?.humans) ? field.humans : [];
-  // humans: +1 charm each (current behavior)
-  result.charm += humans.length;
+  // humans: base per rules (default +1; use baseCharm when enabled)
+  for (const h of humans) {
+    const useBase = !!SCORE_RULES?.summon?.useBaseCharm;
+    const base = useBase && Number.isFinite(h?.baseCharm)
+      ? Number(h.baseCharm)
+      : Number(SCORE_RULES?.summon?.defaultCharm ?? 1);
+    result.charm += base;
+  }
 
   for (const h of humans) {
     const decos = Array.isArray(h?.decorations) ? h.decorations : [];
@@ -40,4 +48,3 @@ export function scoreField(field, cardsById) {
   result.total = result.charm + result.oji;
   return result;
 }
-
