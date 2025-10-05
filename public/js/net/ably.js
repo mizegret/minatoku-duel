@@ -105,9 +105,18 @@ export function connect({
     }
   });
 
+  // Extra safety: also log when attached via statechange and avoid silent stalls
+  try {
+    channel.once('attached', () => {
+      logAction?.('network', `チャンネル状態: attached (${channelName})`);
+    });
+  } catch {}
+
   client.connection.once('connected', () => {
     logAction?.('network', 'Ably接続完了');
     onConnected?.();
+    // Fallback: publish join even if attach callback hasn't fired yet (Ably will implicitly attach)
+    if (roomId) publishJoin({ roomId, logAction });
   });
 
   return {
@@ -207,4 +216,3 @@ export async function publishState(snapshot = {}, { logAction } = {}) {
     logAction?.('network', message);
   }
 }
-
