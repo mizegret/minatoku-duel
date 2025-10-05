@@ -1,20 +1,19 @@
 import { nextCard } from './cards.js';
 import { shuffle } from './random.js';
+import { DECK_COMPOSITION } from '../constants.js';
 
 export function buildDeck(cardsByType, hostGame) {
   const deck = [];
-  // humans x5
-  for (let i = 0; i < 5; i += 1) {
+  const { humans, decorations, actions } = DECK_COMPOSITION;
+  for (let i = 0; i < humans; i += 1) {
     const c = nextCard(cardsByType, 'humans', hostGame);
     deck.push({ ...c, type: 'human' });
   }
-  // decorations x10
-  for (let i = 0; i < 10; i += 1) {
+  for (let i = 0; i < decorations; i += 1) {
     const c = nextCard(cardsByType, 'decorations', hostGame);
     deck.push({ ...c, type: 'decoration' });
   }
-  // actions x5
-  for (let i = 0; i < 5; i += 1) {
+  for (let i = 0; i < actions; i += 1) {
     const c = nextCard(cardsByType, 'actions', hostGame);
     deck.push({ ...c, type: 'action' });
   }
@@ -30,4 +29,3 @@ export function drawCard(playerId, game) {
   game.handsById[playerId].push(card);
   return card;
 }
-

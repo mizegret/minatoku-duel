@@ -1,8 +1,7 @@
-import { DEBUG, CARD_TYPES, TOTAL_TURNS, ABLY_CHANNEL_PREFIX, MAX_DECORATIONS_PER_HUMAN } from './js/constants.js';
-import { randInt, shuffle } from './js/utils/random.js';
+import { TOTAL_TURNS, ABLY_CHANNEL_PREFIX, MAX_DECORATIONS_PER_HUMAN, HAND_SIZE } from './js/constants.js';
 import { buildPlayers } from './js/utils/players.js';
-import { nextCard } from './js/utils/cards.js';
 import { buildDeck, drawCard } from './js/utils/deck.js';
+import { HAND_SIZE } from './js/constants.js';
 
 const lobbySection = document.getElementById('screen-lobby');
 const roomSection = document.getElementById('screen-room');
@@ -972,16 +971,6 @@ function pickCard(type) {
   return col[idx];
 }
 
-function drawCard(playerId, game) {
-  if (!game || !playerId) return null;
-  const deck = game.decksById?.[playerId];
-  if (!Array.isArray(deck) || deck.length === 0) return null;
-  const card = deck.shift();
-  if (!Array.isArray(game.handsById?.[playerId])) game.handsById[playerId] = [];
-  game.handsById[playerId].push(card);
-  return card;
-}
-
 // randInt, shuffle -> js/utils/random.js
 // buildPlayers -> js/utils/players.js
 
@@ -1107,29 +1096,12 @@ function ensureStarted() {
     handsById: {},
   });
 
-  function buildDeck() {
-    const deck = [];
-    // 指定枚数ぶんタイプ別に詰める（この時点では順序固定）
-    for (let i = 0; i < 5; i += 1) {
-      const c = pickCard('humans');
-      deck.push({ ...c, type: 'human' });
-    }
-    for (let i = 0; i < 10; i += 1) {
-      const c = pickCard('decorations');
-      deck.push({ ...c, type: 'decoration' });
-    }
-    for (let i = 0; i < 5; i += 1) {
-      const c = pickCard('actions');
-      deck.push({ ...c, type: 'action' });
-    }
-    // デッキ内順序をシャッフル（各プレイヤー独立）
-    return shuffle(deck);
-  }
+  // buildDeck moved to js/utils/deck.js
 
-  // 各プレイヤーへ配布（簡易：シャッフルなし、上から5枚を手札）
+  // 各プレイヤーへ配布（上から HAND_SIZE 枚を手札）
   members.forEach((id) => {
-    const deck = buildDeck();
-    const hand = deck.splice(0, 5);
+    const deck = buildDeck(state.cardsByType, game);
+    const hand = deck.splice(0, HAND_SIZE);
     game.decksById[id] = deck;
     game.handsById[id] = hand;
     game.fieldById[id] = { humans: [] };
