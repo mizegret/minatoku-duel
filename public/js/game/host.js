@@ -1,6 +1,6 @@
 import { TOTAL_TURNS, MAX_DECORATIONS_PER_HUMAN, HAND_SIZE, ACTIONS } from '../constants.js';
 import { buildPlayers } from '../utils/players.js';
-import { buildDeck, drawCard } from '../utils/deck.js';
+import { buildDeck, drawCard, popFirstByIdOrType } from '../utils/deck.js';
 
 // Step3: Host-side game authority logic
 // - ensureStarted: initialize decks/hands/fields/scores and broadcast start+state
@@ -70,6 +70,14 @@ export function handleMoveMessage(message, ctx) {
   // base score bucket
   const scores = game.scoresById[actorId] ?? { charm: 0, oji: 0, total: 0 };
 
+  // A5: score helper
+  function applyScoreDelta(s, { charm = 0, oji = 0 } = {}) {
+    s.charm = (s.charm || 0) + charm;
+    s.oji = (s.oji || 0) + oji;
+    s.total = s.charm + s.oji;
+    return s;
+  }
+
   // members / opponent
   const members = getMembers();
   const opponent = members.find((id) => id && id !== actorId) || actorId;
@@ -85,19 +93,17 @@ export function handleMoveMessage(message, ctx) {
   if (data.action === ACTIONS.summon) {
     // remove chosen human from hand and put it on field
     const hand = Array.isArray(game.handsById?.[actorId]) ? game.handsById[actorId] : [];
-    let idx = -1;
-    if (data.cardId) idx = hand.findIndex((c) => c?.id === data.cardId);
-    if (idx < 0) idx = hand.findIndex((c) => c?.type === 'human');
-    if (idx >= 0) {
-      const humanCard = hand.splice(idx, 1)[0];
+    const { card: humanCard, index } = popFirstByIdOrType(hand, { cardId: data.cardId, type: 'human' });
+    if (humanCard) {
       if (humanCard?.type === 'human') {
         field.humans.push({ id: humanCard.id, name: humanCard.name, decorations: [] });
         logAction?.('event', `summon: ${humanCard.name}`);
         lastAction.cardName = humanCard.name;
         // fixed MVP scoring (existing behavior)
-        scores.charm += 1;
+        applyScoreDelta(scores, { charm: 1 });
       } else {
-        hand.splice(idx, 0, humanCard);
+        // restore when id matched non-human
+        if (index >= 0) hand.splice(index, 0, humanCard);
         logAction?.('event', 'summon: human以外を選択のため無視');
       }
     } else {
@@ -109,18 +115,14 @@ export function handleMoveMessage(message, ctx) {
       if (target) {
         const decorations = target.decorations ?? [];
         const hand = Array.isArray(game.handsById?.[actorId]) ? game.handsById[actorId] : [];
-        let idx = -1;
-        if (data.cardId) idx = hand.findIndex((c) => c?.id === data.cardId);
-        if (idx < 0) idx = hand.findIndex((c) => c?.type === 'decoration');
-        if (idx >= 0) {
-          const deco = hand.splice(idx, 1)[0];
+        const { card: deco } = popFirstByIdOrType(hand, { cardId: data.cardId, type: 'decoration' });
+        if (deco) {
           decorations.push({ id: deco.id, name: deco.name });
           target.decorations = decorations;
           // per-card adjustment (default charm +1, oji +0)
           const dCharm = Number.isFinite(deco?.charm) ? Number(deco.charm) : 1;
           const dOji = 0;
-          scores.charm += dCharm;
-          scores.oji += dOji;
+          applyScoreDelta(scores, { charm: dCharm, oji: dOji });
           lastAction.cardName = deco.name;
           lastAction.charm = dCharm;
           lastAction.oji = dOji;
@@ -142,15 +144,11 @@ export function handleMoveMessage(message, ctx) {
       // continue to half/turn advance per existing code
     }
     const hand = Array.isArray(game.handsById?.[actorId]) ? game.handsById[actorId] : [];
-    let idx = -1;
-    if (data.cardId) idx = hand.findIndex((c) => c?.id === data.cardId);
-    if (idx < 0) idx = hand.findIndex((c) => c?.type === 'action');
-    if (idx >= 0) {
-      const act = hand.splice(idx, 1)[0];
+    const { card: act } = popFirstByIdOrType(hand, { cardId: data.cardId, type: 'action' });
+    if (act) {
       lastAction.cardName = act.name;
       // Note: existing behavior adds +1 to both charm and oji here
-      scores.charm += 1;
-      scores.oji += 1;
+      applyScoreDelta(scores, { charm: 1, oji: 1 });
       // apply card effects (may update actor or opponent)
       let dCharmSum = 0;
       let dOjiSum = 0;
@@ -210,7 +208,7 @@ export function handleMoveMessage(message, ctx) {
   }
 
   // finalize actor score (existing behavior: overwrite after effects)
-  scores.total = scores.charm + scores.oji;
+  scores.total = scores.charm + scores.oji; // keep final overwrite (behavior unchanged)
   game.scoresById[actorId] = scores;
 
   const players = buildPlayers(game, members2);

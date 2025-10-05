@@ -29,3 +29,14 @@ export function drawCard(playerId, game) {
   game.handsById[playerId].push(card);
   return card;
 }
+
+// A4: helper to take a card from a hand by id first, then by type (no-op if not found)
+export function popFirstByIdOrType(hand, { cardId, type } = {}) {
+  if (!Array.isArray(hand) || hand.length === 0) return { card: null, index: -1 };
+  let idx = -1;
+  if (cardId) idx = hand.findIndex((c) => c?.id === cardId);
+  if (idx < 0 && type) idx = hand.findIndex((c) => c?.type === type);
+  if (idx < 0) return { card: null, index: -1 };
+  const card = hand.splice(idx, 1)[0];
+  return { card, index: idx };
+}
