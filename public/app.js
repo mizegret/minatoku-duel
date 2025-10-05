@@ -100,7 +100,13 @@ async function loadCards() {
     const actions = [];
     for (const c of data.cards) {
       if (!c || typeof c !== 'object') continue;
-      const item = { id: String(c.id ?? ''), name: String(c.name ?? ''), type: String(c.type ?? '') };
+      const item = {
+        id: String(c.id ?? ''),
+        name: String(c.name ?? ''),
+        type: String(c.type ?? ''),
+        charm: typeof c.charm === 'number' ? c.charm : undefined,
+        oji: typeof c.oji === 'number' ? c.oji : undefined,
+      };
       if (item.type === 'human') humans.push(item);
       else if (item.type === 'decoration') decorations.push(item);
       else if (item.type === 'action') actions.push(item);
@@ -310,22 +316,13 @@ function handleMoveMessage(message) {
     return;
   }
 
-  // スコア更新
+  // スコア更新（summon / play は固定、decorate はカード由来で可変）
   const scores = game.scoresById[actorId] ?? { charm: 0, oji: 0, total: 0 };
-  switch (data.action) {
-    case 'summon':
-      scores.charm += 1; break;
-    case 'decorate':
-      scores.oji += 1; break;
-    case 'play':
-      scores.charm += 1; scores.oji += 1; break;
-    case 'skip':
-    default:
-      // 変化なし
-      break;
+  if (data.action === 'summon') {
+    scores.charm += 1;
+  } else if (data.action === 'play') {
+    scores.charm += 1; scores.oji += 1;
   }
-  scores.total = scores.charm + scores.oji;
-  game.scoresById[actorId] = scores;
 
   // 次の手番・ラウンド（2人想定）
   const members = getMembers();
@@ -379,7 +376,14 @@ function handleMoveMessage(message) {
           const deco = hand.splice(idx, 1)[0];
           decorations.push({ id: deco.id, name: deco.name });
           target.decorations = decorations;
+          // カード個別の魅力/好感度補正（デフォルト: charm +1）
+          const dCharm = Number.isFinite(deco?.charm) ? Number(deco.charm) : 1;
+          const dOji = 0; // 装飾では好感度（oji）は上げない
+          scores.charm += dCharm;
+          scores.oji += dOji;
           lastAction.cardName = deco.name;
+          lastAction.charm = dCharm;
+          lastAction.oji = dOji;
           logAction('event', `decorate: ${deco.name}`);
         } else {
           logAction('event', 'decorate: 手札に装飾が見つからないため無視');
@@ -420,6 +424,8 @@ function handleMoveMessage(message) {
   }
 
   // players を構築して配信
+  scores.total = scores.charm + scores.oji;
+  game.scoresById[actorId] = scores;
   const players = buildPlayers(game, members);
   void publishState({ round, turnOwner: game.turnOwner, players, phase, roundHalf: game.half, lastAction });
 }
@@ -494,7 +500,13 @@ function applyStateSnapshot(snapshot) {
       const actorLabel = la.actorId && la.actorId === myId ? 'あなた' : '相手';
       let msg = '';
       if (la.type === 'summon') msg = `${actorLabel}：召喚 → ${la.cardName ?? ''}`;
-      else if (la.type === 'decorate') msg = `${actorLabel}：装飾 → ${la.cardName ?? ''}`;
+      else if (la.type === 'decorate') {
+        const delta = [];
+        if (Number.isFinite(la.charm) && la.charm) delta.push(`魅力+${la.charm}`);
+        if (Number.isFinite(la.oji) && la.oji) delta.push(`好感度+${la.oji}`);
+        const tail = delta.length ? `（${delta.join(' / ')}）` : '';
+        msg = `${actorLabel}：装飾 → ${la.cardName ?? ''} ${tail}`;
+      }
       else if (la.type === 'play') msg = `${actorLabel}：アクション`;
       else if (la.type === 'skip') msg = `${actorLabel}：スキップ`;
       if (msg) logAction('move', msg);
@@ -1060,15 +1072,15 @@ function ensureStarted() {
     // 指定枚数ぶんタイプ別に詰める（この時点では順序固定）
     for (let i = 0; i < 5; i += 1) {
       const c = pickCard('humans');
-      deck.push({ id: c.id, name: c.name, type: 'human' });
+      deck.push({ ...c, type: 'human' });
     }
     for (let i = 0; i < 10; i += 1) {
       const c = pickCard('decorations');
-      deck.push({ id: c.id, name: c.name, type: 'decoration' });
+      deck.push({ ...c, type: 'decoration' });
     }
     for (let i = 0; i < 5; i += 1) {
       const c = pickCard('actions');
-      deck.push({ id: c.id, name: c.name, type: 'action' });
+      deck.push({ ...c, type: 'action' });
     }
     // デッキ内順序をシャッフル（各プレイヤー独立）
     return shuffle(deck);
