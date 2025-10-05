@@ -151,6 +151,32 @@ export function handleMoveMessage(message, ctx) {
           lastAction.cardName = deco.name;
           lastAction.charm = dCharm;
           lastAction.oji = dOji;
+
+          // Skills (minimal): apply target human's onDecorate self-add effects
+          try {
+            const ensureDelta = (id) => (game._actionDeltasById[id] ||= { charm: 0, oji: 0 });
+            let sCharm = 0; let sOji = 0;
+            const byId = game._cardsById || buildCardIndex(state.cardsByType);
+            const humanDef = target?.id ? byId.get(target.id) : null;
+            const skills = Array.isArray(humanDef?.skills) ? humanDef.skills : [];
+            for (const sk of skills) {
+              const triggers = Array.isArray(sk?.triggers) ? sk.triggers : [];
+              if (!triggers.includes('onDecorate')) continue;
+              const effects = Array.isArray(sk?.effects) ? sk.effects : [];
+              for (const e of effects) {
+                if (!e || e.op !== 'add') continue;
+                const delta = Number(e.value) || 0;
+                if (!delta) continue;
+                const targetSelf = !e.target || e.target === 'self';
+                if (!targetSelf) continue; // minimal
+                const d = ensureDelta(actorId);
+                if (e.stat === 'charm') { d.charm = Math.max(0, d.charm + delta); sCharm += delta; }
+                if (e.stat === 'oji') { d.oji = Math.max(0, d.oji + delta); sOji += delta; }
+              }
+            }
+            if (sCharm) lastAction.charm = (lastAction.charm || 0) + sCharm;
+            if (sOji) lastAction.oji = (lastAction.oji || 0) + sOji;
+          } catch {}
           logAction?.('event', `decorate: ${deco.name}`);
         } else {
           logAction?.('event', 'decorate: 手札に装飾が見つからないため無視');
@@ -211,6 +237,35 @@ export function handleMoveMessage(message, ctx) {
   }
 
   game.fieldById[actorId] = field;
+
+  // Turn end skills for the acting player (minimal: self add only)
+  let turnEndInfo = null;
+  try {
+    const fieldAct = game.fieldById?.[actorId] ?? { humans: [] };
+    const byId = game._cardsById || buildCardIndex(state.cardsByType);
+    const ensureDelta = (id) => (game._actionDeltasById[id] ||= { charm: 0, oji: 0 });
+    let eCharm = 0; let eOji = 0;
+    for (const h of Array.isArray(fieldAct.humans) ? fieldAct.humans : []) {
+      const humanDef = h?.id ? byId.get(h.id) : null;
+      const skills = Array.isArray(humanDef?.skills) ? humanDef.skills : [];
+      for (const sk of skills) {
+        const triggers = Array.isArray(sk?.triggers) ? sk.triggers : [];
+        if (!triggers.includes('onTurnEnd')) continue;
+        const effects = Array.isArray(sk?.effects) ? sk.effects : [];
+        for (const e of effects) {
+          if (!e || e.op !== 'add') continue;
+          const delta = Number(e.value) || 0;
+          if (!delta) continue;
+          const targetSelf = !e.target || e.target === 'self';
+          if (!targetSelf) continue;
+          const d = ensureDelta(actorId);
+          if (e.stat === 'charm') { d.charm = Math.max(0, d.charm + delta); eCharm += delta; }
+          if (e.stat === 'oji') { d.oji = Math.max(0, d.oji + delta); eOji += delta; }
+        }
+      }
+    }
+    if (eCharm || eOji) turnEndInfo = { actorId, charm: eCharm || 0, oji: eOji || 0 };
+  } catch {}
 
   // advance half/round and switch turn owner (2 players)
   const members2 = members; // keep reference stable for readability
@@ -284,5 +339,5 @@ export function handleMoveMessage(message, ctx) {
   } catch {}
 
   const players = buildPlayers(game, members2);
-  publishState({ round, turnOwner: game.turnOwner, players, phase, roundHalf: game.half, lastAction, turnStart: turnStartInfo });
+  publishState({ round, turnOwner: game.turnOwner, players, phase, roundHalf: game.half, lastAction, turnStart: turnStartInfo, turnEnd: turnEndInfo });
 }

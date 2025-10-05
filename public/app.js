@@ -381,6 +381,16 @@ function applyStateSnapshot(snapshot) {
       logAction('state', `state 受信: round=${round} phase=${phase}`);
     }
 
+    // ターン終了時スキル（直近行動の後に出す）
+    const te = snapshot?.turnEnd;
+    if (te && (Number.isFinite(te.charm) || Number.isFinite(te.oji))) {
+      const mine = !!(te.actorId && te.actorId === myId);
+      const parts = [];
+      if (Number.isFinite(te.charm) && te.charm) parts.push(`魅力+${te.charm}`);
+      if (Number.isFinite(te.oji) && te.oji) parts.push(`好感度+${te.oji}`);
+      if (parts.length) logAction('event', `${mine ? 'あなた' : '相手'}：スキル発動（終了時） ${parts.join(' / ')}`);
+    }
+
     // 通知とアクション制御
     setNotice('');
     if (phase === 'ended' || phase === 'game-over' || round > TOTAL_TURNS) {
