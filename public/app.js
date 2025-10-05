@@ -60,21 +60,55 @@ async function loadCards() {
     const humans = [];
     const decorations = [];
     const actions = [];
+
     for (const c of data.cards) {
       if (!c || typeof c !== 'object') continue;
-      const item = {
+      const type = String(c.type ?? '');
+      const base = {
         id: String(c.id ?? ''),
         name: String(c.name ?? ''),
-        type: String(c.type ?? ''),
-        charm: typeof c.charm === 'number' ? c.charm : undefined,
-        oji: typeof c.oji === 'number' ? c.oji : undefined,
-        effect: Array.isArray(c.effect) ? c.effect : undefined,
+        type,
       };
-      if (item.type === 'human') humans.push(item);
-      else if (item.type === 'decoration') decorations.push(item);
-      else if (item.type === 'action') actions.push(item);
+
+      if (type === 'human') {
+        humans.push({
+          ...base,
+          age: typeof c.age === 'number' ? c.age : undefined,
+          rarity: typeof c.rarity === 'string' ? c.rarity : undefined,
+          baseCharm: typeof c.baseCharm === 'number' ? c.baseCharm : undefined,
+          baseOji: typeof c.baseOji === 'number' ? c.baseOji : undefined,
+          imageUrl: typeof c.imageUrl === 'string' ? c.imageUrl : undefined,
+          skills: Array.isArray(c.skills) ? c.skills : undefined,
+          // legacy fields kept for compatibility (no behavior change)
+          charm: typeof c.charm === 'number' ? c.charm : undefined,
+          oji: typeof c.oji === 'number' ? c.oji : undefined,
+        });
+      } else if (type === 'decoration') {
+        decorations.push({
+          ...base,
+          rarity: typeof c.rarity === 'string' ? c.rarity : undefined,
+          text: typeof c.text === 'string' ? c.text : undefined,
+          imageUrl: typeof c.imageUrl === 'string' ? c.imageUrl : undefined,
+          charm: typeof c.charm === 'number' ? c.charm : undefined, // current runtime uses this
+          charmBonus: typeof c.charmBonus === 'number' ? c.charmBonus : undefined, // reserved/new
+          oji: typeof c.oji === 'number' ? c.oji : undefined, // reserved
+          slotsUsed: typeof c.slotsUsed === 'number' ? c.slotsUsed : undefined, // reserved
+        });
+      } else if (type === 'action') {
+        actions.push({
+          ...base,
+          rarity: typeof c.rarity === 'string' ? c.rarity : undefined,
+          text: typeof c.text === 'string' ? c.text : undefined,
+          imageUrl: typeof c.imageUrl === 'string' ? c.imageUrl : undefined,
+          effect: Array.isArray(c.effect) ? c.effect : undefined,
+          // legacy numeric hooks kept for safety (unused by runtime)
+          charm: typeof c.charm === 'number' ? c.charm : undefined,
+          oji: typeof c.oji === 'number' ? c.oji : undefined,
+        });
+      }
       // それ以外の type は無視（MVP）
     }
+
     setState({ cardsByType: { humans, decorations, actions } });
     console.info('[cards] loaded (new schema)', { humans: humans.length, decorations: decorations.length, actions: actions.length });
   } catch (e) {
