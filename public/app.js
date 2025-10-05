@@ -9,7 +9,7 @@ import { state, setState, addMember, subscribe } from './js/state.js';
 const lobbySection = document.getElementById('screen-lobby');
 const roomSection = document.getElementById('screen-room');
 const roomIdLabel = document.getElementById('room-id');
-const noticeArea = document.getElementById('notice');
+const noticeArea = document.getElementById('notice'); // global notice (lobby + in-room)
 
 const ROOM_ID_PATTERN = /^[a-z0-9-]{8}$/;
 const ENV_ENDPOINT = '/env';
@@ -43,6 +43,7 @@ function setNotice(message) {
   noticeArea.textContent = message;
   noticeArea.removeAttribute('hidden');
 }
+
 
 async function loadEnvironment() {
   const sources = IS_LOCAL ? ['/env.local.json'] : [ENV_ENDPOINT];
@@ -399,6 +400,7 @@ function applyStateSnapshot(snapshot) {
       }
     } else if (myTurn) {
       unlockActions();
+      setNotice('');
       const turnKey = `turn:${round}:${turnOwner || ''}`;
       if (shouldLog('turnMsg', turnKey)) logAction('state', `あなたのターン（ラウンド ${displayRound}）`);
       // skills: show start-of-turn deltas right after the turn message
@@ -415,6 +417,7 @@ function applyStateSnapshot(snapshot) {
     } else {
       lockActions();
       if (turnOwner) {
+        setNotice('');
         setNotice('相手のターンです…');
         // optionally log opponent start-of-turn skills as well
         const ts = snapshot?.turnStart;
