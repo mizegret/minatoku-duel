@@ -77,7 +77,7 @@ type Condition =
   - `charm?: number` … 旧フィールド。将来は `charmBonus` へ集約予定（M1でローダーが双方を受理）。
 - 任意/予約:
   - `oji?: number` 好感度補正（予約、未使用）。
-  - `slotsUsed?: number` 装備スロットの消費数（予約、未使用。デフォルト1）。
+  - `slotsUsed?: number` 装備スロットの消費数（デフォルト1）。多枠を使う大型装飾の表現に使用（M0では保持のみ）。
 
 表示/色（M0 ガイド）
 - human と同じ rarity パレットを使用（UR: ゴールド系, SR: パープル系, R: ブルー系, N: グレー系）。
@@ -86,6 +86,15 @@ type Condition =
 備考（挙動不変）
 - 現行のスコア計算は `oji` を使用しないため、`oji` を記載しても効果はない。将来のルール切替で利用予定。
 - 現行実装は `charm` を読み取るため、当面は `charmBonus` と同値の `charm` を併記しておくと安全。
+
+## 画像アセット配置ルール（ガイド）
+- ベースパス: `public/assets/cards/`
+- 配置規約:
+  - human: `public/assets/cards/humans/<cardId>.webp`
+  - decoration: `public/assets/cards/decorations/<cardId>.webp`
+  - action: `public/assets/cards/actions/<cardId>.webp`
+- `imageUrl` には上記パスを `/assets/...` からのルートで指定（例: `/assets/cards/humans/h_minami.webp`）。
+- 形式: `webp` 推奨（PNG/JPG 可）。長辺目安は 256〜512px（MVP）。
 
 ## 行動（action）
 - `effect?: Effect[]` 効果一覧。既存の形式を踏襲。

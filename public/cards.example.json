@@ -11,21 +11,16 @@
       ]
     },
 
-    { "id": "h_rina", "name": "白金りな", "type": "human", "age": 22, "rarity": "SR", "baseCharm": 1,
-      "imageUrl": "/assets/cards/humans/h_rina.webp"
-    },
-
-    { "id": "d_champagne", "name": "シャンパン・タワー", "type": "decoration", "charm": 2 },
     { "id": "d_champagne", "name": "シャンパン・タワー", "type": "decoration",
       "rarity": "SR", "text": "泡と一緒に理性も崩れる。誰が払うかは聞かないのが港区の礼儀。",
       "imageUrl": "/assets/cards/decorations/d_champagne.webp",
-      "charm": 2, "charmBonus": 2
+      "charm": 2, "charmBonus": 2, "slotsUsed": 1
     },
 
     { "id": "d_brandbag", "name": "ブランドバッグ", "type": "decoration",
       "rarity": "R", "text": "ロゴの輝きで第一印象を+1段。中身より紙袋の方が大事な夜もある。",
       "imageUrl": "/assets/cards/decorations/d_brandbag.webp",
-      "charm": 1, "charmBonus": 1
+      "charm": 1, "charmBonus": 1, "slotsUsed": 1
     },
 
     { "id": "a_selfie", "name": "インスタ自慢", "type": "action", "effect": [
