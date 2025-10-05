@@ -1,7 +1,6 @@
 import { TOTAL_TURNS, ABLY_CHANNEL_PREFIX, MAX_DECORATIONS_PER_HUMAN, HAND_SIZE } from './js/constants.js';
 import { buildPlayers } from './js/utils/players.js';
 import { buildDeck, drawCard } from './js/utils/deck.js';
-import { HAND_SIZE } from './js/constants.js';
 
 const lobbySection = document.getElementById('screen-lobby');
 const roomSection = document.getElementById('screen-room');
