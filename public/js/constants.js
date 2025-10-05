@@ -33,7 +33,7 @@ export const SCORE_RULES = {
   // summon: use baseCharm when available; fallback to 1
   summon: { useBaseCharm: true, defaultCharm: 1 },
   decorate: {
-    useCardCharm: true,      // if true, prefer card.charm; else fallback to defaultCharm
+    // v2 cards: use charmBonus exclusively; fallback to defaultCharm when missing
     defaultCharm: 1,
     defaultOji: 0,
   },

@@ -1,8 +1,8 @@
-// Score utilities (M3: aggregation for verification only)
+// Score utilities (aggregate-as-truth)
 // - buildCardIndex(cardsByType): map id -> card (for decorations lookup)
-// - scoreField(field, cardsById): recompute charm/oji from field only (current behavior parity)
-//   - humans: +1 charm each (baseCharm is ignored until SWITCH)
-//   - decorations: +charmBonus or +charm (fallback 1), oji not counted (current behavior)
+// - scoreField(field, cardsById): recompute charm/oji from field only（場＋装飾のみを集計）
+//   - humans: SCORE_RULES.summon: baseCharm>0 を優先、未指定は defaultCharm
+//   - decorations: v2 の charmBonus を使用（未指定は defaultCharm）、oji は未集計
 
 import { SCORE_RULES } from '../constants.js';
 
@@ -40,7 +40,7 @@ export function scoreField(field, cardsById) {
       const card = d?.id ? cardsById?.get?.(d.id) : null;
       const dCharm = Number.isFinite(card?.charmBonus)
         ? Number(card.charmBonus)
-        : (Number.isFinite(card?.charm) ? Number(card.charm) : 1);
+        : Number(SCORE_RULES?.decorate?.defaultCharm ?? 1);
       result.charm += dCharm;
       // current runtime does not add oji for decorations
     }

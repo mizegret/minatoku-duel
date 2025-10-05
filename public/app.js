@@ -79,13 +79,10 @@ async function loadCards() {
           baseOji: typeof c.baseOji === 'number' ? c.baseOji : undefined,
           imageUrl: typeof c.imageUrl === 'string' ? c.imageUrl : undefined,
           skills: Array.isArray(c.skills) ? c.skills : undefined,
-          // legacy fields kept for compatibility (no behavior change)
-          charm: typeof c.charm === 'number' ? c.charm : undefined,
-          oji: typeof c.oji === 'number' ? c.oji : undefined,
         };
         // M5: light validation + safe defaults (warn-only; behavior unchanged)
         if (!Number.isFinite(h.baseCharm)) {
-          // leave undefined so legacy cards fall back to defaultCharm via SCORE_RULES
+          // leave undefined so rules fallback (SCORE_RULES.summon.defaultCharm) applies
           console.warn('[cards][validate] human.baseCharm missing; using rule default (no field write)', h.id);
         }
         const R = String(h.rarity || '').toUpperCase();
@@ -106,18 +103,15 @@ async function loadCards() {
           rarity: typeof c.rarity === 'string' ? c.rarity : undefined,
           text: typeof c.text === 'string' ? c.text : undefined,
           imageUrl: typeof c.imageUrl === 'string' ? c.imageUrl : undefined,
-          charm: typeof c.charm === 'number' ? c.charm : undefined, // current runtime uses this
-          charmBonus: typeof c.charmBonus === 'number' ? c.charmBonus : undefined, // reserved/new
+          charmBonus: typeof c.charmBonus === 'number' ? c.charmBonus : undefined,
           oji: typeof c.oji === 'number' ? c.oji : undefined, // reserved
           slotsUsed: typeof c.slotsUsed === 'number' ? c.slotsUsed : undefined, // reserved
         };
-        // M5: defaults + warnings
+        // M5: defaults + warnings (v2 only)
         const RD = String(d.rarity || '').toUpperCase();
         const okRD = RD === 'UR' || RD === 'SR' || RD === 'R' || RD === 'N';
         if (!okRD) { d.rarity = 'N'; console.warn('[cards][validate] decoration.rarity missing; fallback N', d.id); } else { d.rarity = RD; }
-        if (!Number.isFinite(d.charmBonus)) {
-          d.charmBonus = Number.isFinite(d.charm) ? Number(d.charm) : 1;
-        }
+        if (!Number.isFinite(d.charmBonus)) { d.charmBonus = 1; }
         if (!Number.isFinite(d.slotsUsed)) d.slotsUsed = 1;
         if (!d.text) console.warn('[cards][validate] decoration.text missing', d.id);
         decorations.push(d);
@@ -128,9 +122,6 @@ async function loadCards() {
           text: typeof c.text === 'string' ? c.text : undefined,
           imageUrl: typeof c.imageUrl === 'string' ? c.imageUrl : undefined,
           effect: Array.isArray(c.effect) ? c.effect : undefined,
-          // legacy numeric hooks kept for safety (unused by runtime)
-          charm: typeof c.charm === 'number' ? c.charm : undefined,
-          oji: typeof c.oji === 'number' ? c.oji : undefined,
         };
         const RA = String(a.rarity || '').toUpperCase();
         const okRA = RA === 'UR' || RA === 'SR' || RA === 'R' || RA === 'N';

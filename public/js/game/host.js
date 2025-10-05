@@ -120,9 +120,9 @@ export function handleMoveMessage(message, ctx) {
         if (deco) {
           decorations.push({ id: deco.id, name: deco.name });
           target.decorations = decorations;
-          // M4: per-card adjustment for lastAction (aggregator recalculates final scores)
-          const dCharm = (SCORE_RULES?.decorate?.useCardCharm && Number.isFinite(deco?.charm))
-            ? Number(deco.charm)
+          // v2 cards: charmBonus is the source; fallback to rule default
+          const dCharm = Number.isFinite(deco?.charmBonus)
+            ? Number(deco.charmBonus)
             : Number(SCORE_RULES?.decorate?.defaultCharm ?? 1);
           const dOji = Number(SCORE_RULES?.decorate?.defaultOji ?? 0);
           lastAction.cardName = deco.name;
