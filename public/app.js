@@ -1,6 +1,6 @@
-import { TOTAL_TURNS, ABLY_CHANNEL_PREFIX, MAX_DECORATIONS_PER_HUMAN, HAND_SIZE } from './js/constants.js';
-import { buildPlayers } from './js/utils/players.js';
-import { buildDeck, drawCard } from './js/utils/deck.js';
+import { TOTAL_TURNS, ABLY_CHANNEL_PREFIX, MAX_DECORATIONS_PER_HUMAN } from './js/constants.js';
+// host/game logic
+import { ensureStarted as hostEnsureStarted, handleMoveMessage as hostHandleMoveMessage } from './js/game/host.js';
 
 const lobbySection = document.getElementById('screen-lobby');
 const roomSection = document.getElementById('screen-room');
@@ -298,180 +298,13 @@ function handleStartMessage(message) {
 }
 
 function handleMoveMessage(message) {
-  const data = message?.data ?? {};
-  logAction('event', `move 受信: ${data.clientId ?? 'unknown'} → ${data.action ?? 'unknown'}`);
-  // Host のみ処理して authoritative state を再配信
-  if (!state.isHost || !state.started) return;
-  const actorId = data.clientId;
-  if (!actorId) return;
-
-  // 最小のゲーム状態（Host 内部）
-  if (!state.hostGame) {
-    state.hostGame = { round: state.turn || 1, turnOwner: actorId, scoresById: {}, half: 0 };
-  }
-  const game = state.hostGame;
-
-  // 手番チェック（厳密化は後続）
-  if (game.turnOwner && actorId !== game.turnOwner) {
-    // 手番外は無視（最小実装）
-    logAction('event', '手番ではない move を無視');
-    return;
-  }
-
-  // スコア更新（summon / play は固定、decorate はカード由来で可変）
-  const scores = game.scoresById[actorId] ?? { charm: 0, oji: 0, total: 0 };
-  if (data.action === 'summon') {
-    scores.charm += 1;
-  } else if (data.action === 'play') {
-    scores.charm += 1; scores.oji += 1;
-  }
-
-  // 次の手番・ラウンド（2人想定）
-  const members = getMembers();
-  const opponent = members.find((id) => id && id !== actorId) || actorId;
-  let round = game.round || 1;
-  let phase = 'in-round';
-  const half = typeof game.half === 'number' ? game.half : 0; // 0:前半, 1:後半
-
-  // 盤面の最小更新（召喚/装飾）
-  if (!game.fieldById) game.fieldById = {};
-  const field = game.fieldById[actorId] ?? { humans: [] };
-  let lastAction = { type: data.action, actorId, cardName: undefined };
-  if (data.action === 'summon') {
-    // 手札から対象カードIDのhumanを取り出して場へ（ID優先、なければ最初のhuman）
-    const hand = Array.isArray(game.handsById?.[actorId]) ? game.handsById[actorId] : [];
-    console.debug('[host-move] summon before', { actorId, hand: hand.map((c)=>c.id), cardId: data.cardId });
-    let idx = -1;
-    if (data.cardId) {
-      idx = hand.findIndex((c) => c?.id === data.cardId);
-    }
-    if (idx < 0) {
-      idx = hand.findIndex((c) => c?.type === 'human');
-    }
-    if (idx >= 0) {
-      const humanCard = hand.splice(idx, 1)[0];
-      if (humanCard?.type === 'human') {
-        field.humans.push({ id: humanCard.id, name: humanCard.name, decorations: [] });
-        logAction('event', `summon: ${humanCard.name}`);
-        console.debug('[host-move] summon after', { actorId, hand: hand.map((c)=>c.id), fieldCount: field.humans.length });
-        lastAction.cardName = humanCard.name;
-      } else {
-        // human以外を誤って指定した場合は手札へ戻す
-        hand.splice(idx, 0, humanCard);
-        logAction('event', 'summon: human以外を選択のため無視');
-      }
-    } else {
-      logAction('event', 'summon: 手札に一致カードなし');
-    }
-  } else if (data.action === 'decorate') {
-    // 付与先（空き枠のある最初の人間）を決定
-    if (field.humans.length > 0) {
-      const target = field.humans.find((h) => (h?.decorations?.length ?? 0) < MAX_DECORATIONS_PER_HUMAN);
-      if (target) {
-        const decorations = target.decorations ?? [];
-        // 手札から対象装飾を取り出す（ID優先、無ければ最初の装飾）
-        const hand = Array.isArray(game.handsById?.[actorId]) ? game.handsById[actorId] : [];
-        let idx = -1;
-        if (data.cardId) idx = hand.findIndex((c) => c?.id === data.cardId);
-        if (idx < 0) idx = hand.findIndex((c) => c?.type === 'decoration');
-        if (idx >= 0) {
-          const deco = hand.splice(idx, 1)[0];
-          decorations.push({ id: deco.id, name: deco.name });
-          target.decorations = decorations;
-          // カード個別の魅力/好感度補正（デフォルト: charm +1）
-          const dCharm = Number.isFinite(deco?.charm) ? Number(deco.charm) : 1;
-          const dOji = 0; // 装飾では好感度（oji）は上げない
-          scores.charm += dCharm;
-          scores.oji += dOji;
-          lastAction.cardName = deco.name;
-          lastAction.charm = dCharm;
-          lastAction.oji = dOji;
-          logAction('event', `decorate: ${deco.name}`);
-        } else {
-          logAction('event', 'decorate: 手札に装飾が見つからないため無視');
-        }
-      } else {
-        logAction('event', 'decorate: 空き枠のある人がいないため無視');
-      }
-    } else {
-      logAction('event', 'decorate: 場に人間がいないため無視');
-    }
-  } else if (data.action === 'play') {
-    // ムーブ（所作）: actionカードのeffectを適用
-    // サーバ側ガード：場に人間がいなければ無視
-    const myField = game.fieldById?.[actorId] ?? { humans: [] };
-    if (!Array.isArray(myField.humans) || myField.humans.length === 0) {
-      logAction('event', 'play: 場に人間がいないため無視');
-      // 手番は消費する（1アクション扱い）か？→ 現状は消費とするためこのまま後続進行。
-      // 消費したくない場合は return; で早期終了に変更可能。
-    }
-    const hand = Array.isArray(game.handsById?.[actorId]) ? game.handsById[actorId] : [];
-    let idx = -1;
-    if (data.cardId) idx = hand.findIndex((c) => c?.id === data.cardId);
-    if (idx < 0) idx = hand.findIndex((c) => c?.type === 'action');
-    if (idx >= 0) {
-      const act = hand.splice(idx, 1)[0];
-      lastAction.cardName = act.name;
-      // effectの合計を計算しつつ、対象に適用
-      let dCharmSum = 0;
-      let dOjiSum = 0;
-      const effects = Array.isArray(act?.effect) ? act.effect : [];
-      for (const e of effects) {
-        if (!e || e.op !== 'add') continue;
-        const delta = Number(e.value) || 0;
-        if (!delta) continue;
-        const targetId = (e.target === 'opponent') ? opponent : actorId;
-        const tScores = game.scoresById[targetId] ?? { charm: 0, oji: 0, total: 0 };
-        if (e.stat === 'charm') {
-          tScores.charm = Math.max(0, tScores.charm + delta);
-          if (targetId === actorId) dCharmSum += delta; // 自分に与えた分を表示用に集計
-        } else if (e.stat === 'oji') {
-          tScores.oji = Math.max(0, tScores.oji + delta);
-          if (targetId === actorId) dOjiSum += delta;
-        }
-        tScores.total = tScores.charm + tScores.oji;
-        game.scoresById[targetId] = tScores;
-      }
-      if (dCharmSum) lastAction.charm = dCharmSum;
-      if (dOjiSum) lastAction.oji = dOjiSum;
-      logAction('event', `play: ${act.name}`);
-    } else {
-      logAction('event', 'play: 手札にアクションが見つからないため無視');
-    }
-  }
-  game.fieldById[actorId] = field;
-
-  if (half === 0) {
-    // 前半手が終了 → 手番を相手へ、ラウンド据え置き
-    game.half = 1;
-    game.turnOwner = opponent;
-    game.roundStarter = actorId;
-  } else {
-    // 後半手が終了 → ラウンド+1、手番を相手へ、半手リセット
-    if (round >= TOTAL_TURNS) {
-      // 最終ラウンドではインクリメントしない（デクリメント見えを避ける）
-      phase = 'ended';
-      round = TOTAL_TURNS;
-    } else {
-      round += 1;
-    }
-    game.half = 0;
-    game.turnOwner = opponent;
-    game.roundStarter = opponent; // 次ラウンドのスターター
-  }
-
-  game.round = round;
-
-  // 新しい手番の開始時に1ドロー（最終ラウンドのended時はドローしない）
-  if (phase !== 'ended') {
-    drawCard(game.turnOwner, game);
-  }
-
-  // players を構築して配信
-  scores.total = scores.charm + scores.oji;
-  game.scoresById[actorId] = scores;
-  const players = buildPlayers(game, members);
-  void publishState({ round, turnOwner: game.turnOwner, players, phase, roundHalf: game.half, lastAction });
+  return hostHandleMoveMessage(message, {
+    state,
+    publishState,
+    getMembers,
+    getClientId,
+    logAction,
+  });
 }
 
 function handleStateMessage(message) {
@@ -958,18 +791,6 @@ function getMembers() {
   return uniq;
 }
 
-// --- minimal card helpers (Host側で使用) ---
-function pickCard(type) {
-  const empty = { id: `${type}-none`, name: 'カード' };
-  const col = state.cardsByType?.[type];
-  if (!Array.isArray(col) || col.length === 0) return empty;
-  if (!state.hostGame) return col[0];
-  if (!state.hostGame._seq) state.hostGame._seq = { humans: 0, decorations: 0, actions: 0 };
-  const idx = state.hostGame._seq[type] % col.length;
-  state.hostGame._seq[type] = state.hostGame._seq[type] + 1;
-  return col[idx];
-}
-
 // utils moved to js/utils/*
 
 function navigateToRoom(roomId) {
@@ -1075,45 +896,16 @@ function updateStartUI() {
 }
 
 function ensureStarted() {
-  if (state.started) return;
-  if (!state.isHost) return;
   if (!ablyClient || ablyClient.connection?.state !== 'connected') return;
   if (!ablyChannel) return;
-  if (getMembers().length < 2) return; // 2人揃ってから開始
-  // デッキ配布（MVP固定: human5 / deco10 / action5）
-  const members = getMembers();
-  const hostId = getClientId();
-  const game = (state.hostGame = {
-    round: 1,
-    turnOwner: hostId,
-    roundStarter: hostId,
-    half: 0,
-    scoresById: {},
-    fieldById: {},
-    decksById: {},
-    handsById: {},
+  return hostEnsureStarted({
+    state,
+    publishStart,
+    publishState,
+    getMembers,
+    getClientId,
+    logAction,
   });
-
-  // buildDeck moved to js/utils/deck.js
-
-  // 各プレイヤーへ配布（上から HAND_SIZE 枚を手札）
-  members.forEach((id) => {
-    const deck = buildDeck(state.cardsByType, game);
-    const hand = deck.splice(0, HAND_SIZE);
-    game.decksById[id] = deck;
-    game.handsById[id] = hand;
-    game.fieldById[id] = { humans: [] };
-    game.scoresById[id] = { charm: 0, oji: 0, total: 0 };
-  });
-
-  // 先攻の開始時ドロー
-  drawCard(hostId, game);
-
-  // start → 初期state（playersに手札・空の場・初期スコアを含める）
-  void publishStart();
-  const players = buildPlayers(game, members);
-  void publishState({ round: 1, phase: 'in-round', turnOwner: hostId, roundHalf: 0, players });
-  state.started = true;
 }
 
 init();
