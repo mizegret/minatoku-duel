@@ -17,7 +17,7 @@
   - 追加: `formatLastAction(la, actorLabel)` を `public/app.js`（もしくは `ui/render.js`）に抽出。
   - 受け入れ: ログ出力が完全一致（時刻除外）。
 
-- [ ] A3: ラウンド表示算出の関数化
+- [x] A3: ラウンド表示算出の関数化
   - 追加: `computeDisplayRound({ phase, round, myTurn, roundHalf })`。
   - 受け入れ: 表示ターンが全条件で従来と一致。
 

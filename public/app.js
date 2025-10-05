@@ -152,6 +152,13 @@ function pushLog(entry) {
   UI.renderLog(state.log);
 }
 
+// Compute displayed round number based on phase/half/turn owner (A3)
+function computeDisplayRound({ phase, round, myTurn, roundHalf }) {
+  const r = Number.isFinite(round) ? round : state.turn;
+  if (phase === 'ended') return r || 1;
+  return (myTurn || roundHalf === 1) ? (r || 1) : Math.max(1, (r || 1) - 1);
+}
+
 // Format lastAction message (A2: extracted helper)
 function formatLastAction(la, actorLabel) {
   if (!la || !la.type) return '';
@@ -248,11 +255,9 @@ function applyStateSnapshot(snapshot) {
   // ターン・フェーズ反映（表示仕様）
   // - ended 時は両者とも round を表示
   // - それ以外: roundHalf=0（前半）は 自分のターン=round / 相手=round-1。roundHalf=1（後半）は両者=round
-  const myTurn = turnOwner && myId && turnOwner === myId;
+  const myTurn = !!(turnOwner && myId && turnOwner === myId);
   const roundHalf = Number.isFinite(snapshot?.roundHalf) ? snapshot.roundHalf : 0;
-  const displayRound = (phase === 'ended')
-    ? (round || 1)
-    : ((myTurn || roundHalf === 1) ? (round || 1) : Math.max(1, (round || 1) - 1));
+  const displayRound = computeDisplayRound({ phase, round, myTurn, roundHalf });
   setState({ turn: displayRound });
   UI.updateTurnIndicator(state.turn, TOTAL_TURNS);
   setState({ isMyTurn: !!myTurn });
