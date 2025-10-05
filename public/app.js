@@ -8,24 +8,8 @@ import { state, setState, addMember } from './js/state.js';
 
 const lobbySection = document.getElementById('screen-lobby');
 const roomSection = document.getElementById('screen-room');
-const createButton = document.getElementById('create-room');
-const copyButton = document.getElementById('copy-room-link');
 const roomIdLabel = document.getElementById('room-id');
-const scoreCharm = document.getElementById('score-charm');
-const scoreOji = document.getElementById('score-oji');
-const scoreTotal = document.getElementById('score-total');
 const noticeArea = document.getElementById('notice');
-const handSelf = document.getElementById('hand-self');
-const handOpponent = document.getElementById('hand-opponent');
-const fieldSelf = document.getElementById('field-self');
-const fieldOpponent = document.getElementById('field-opponent');
-const deckSelfCount = document.getElementById('deck-self-count');
-const deckOpponentCount = document.getElementById('deck-opponent-count');
-const turnLabel = document.getElementById('turn-indicator');
-const actionLog = document.getElementById('action-log');
-const actionButtons = [
-  document.getElementById('action-skip'),
-];
 
 const ROOM_ID_PATTERN = /^[a-z0-9-]{8}$/;
 const ENV_ENDPOINT = '/env';
