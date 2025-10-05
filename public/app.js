@@ -16,8 +16,6 @@ const deckOpponentCount = document.getElementById('deck-opponent-count');
 const turnLabel = document.getElementById('turn-indicator');
 const actionLog = document.getElementById('action-log');
 const actionButtons = [
-  document.getElementById('action-summon'),
-  document.getElementById('action-decorate'),
   document.getElementById('action-play'),
   document.getElementById('action-skip'),
 ];
@@ -1013,12 +1011,7 @@ async function init() {
   });
 
   // Startボタンは廃止（自動開始）
-  document.getElementById('action-decorate')?.addEventListener(
-    'click',
-    logButtonAction('decorate', '装飾', () => {
-      void publishMove({ action: 'decorate' });
-    }),
-  );
+  // 下部の装飾ボタンは廃止（手札クリックで装飾）
   document.getElementById('action-play')?.addEventListener(
     'click',
     logButtonAction('play', 'アクション', () => {
