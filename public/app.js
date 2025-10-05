@@ -223,7 +223,11 @@ function computeDisplayRound({ phase, round, myTurn, roundHalf }) {
 function formatLastAction(la, actorLabel) {
   if (!la || !la.type) return '';
   if (la.type === ACTIONS.summon) {
-    return `${actorLabel}：召喚 → ${la.cardName ?? ''}`;
+    const delta = [];
+    if (Number.isFinite(la.charm) && la.charm) delta.push(`魅力+${la.charm}`);
+    if (Number.isFinite(la.oji) && la.oji) delta.push(`好感度+${la.oji}`);
+    const tail = delta.length ? `（${delta.join(' / ')}）` : '';
+    return `${actorLabel}：召喚 → ${la.cardName ?? ''} ${tail}`;
   }
   if (la.type === ACTIONS.decorate) {
     const delta = [];

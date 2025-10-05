@@ -101,7 +101,30 @@ export function handleMoveMessage(message, ctx) {
         field.humans.push(humanOnField);
         logAction?.('event', `summon: ${humanCard.name}`);
         lastAction.cardName = humanCard.name;
-        // scoring is handled by aggregator (field + rules); no mid-tick mutation
+        // Skills (minimal): apply self add effects with trigger 'onSummon'
+        try {
+          const ensureDelta = (id) => (game._actionDeltasById[id] ||= { charm: 0, oji: 0 });
+          let sCharm = 0; let sOji = 0;
+          const skills = Array.isArray(humanCard.skills) ? humanCard.skills : [];
+          for (const sk of skills) {
+            const triggers = Array.isArray(sk?.triggers) ? sk.triggers : [];
+            if (!triggers.includes('onSummon')) continue;
+            const effects = Array.isArray(sk?.effects) ? sk.effects : [];
+            for (const e of effects) {
+              if (!e || e.op !== 'add') continue;
+              const delta = Number(e.value) || 0;
+              if (!delta) continue;
+              const targetSelf = !e.target || e.target === 'self';
+              if (!targetSelf) continue; // minimal: self only
+              const d = ensureDelta(actorId);
+              if (e.stat === 'charm') { d.charm = Math.max(0, d.charm + delta); sCharm += delta; }
+              if (e.stat === 'oji') { d.oji = Math.max(0, d.oji + delta); sOji += delta; }
+            }
+          }
+          if (sCharm) lastAction.charm = (lastAction.charm || 0) + sCharm;
+          if (sOji) lastAction.oji = (lastAction.oji || 0) + sOji;
+        } catch {}
+        // scoring is handled by aggregator (field + rules + skill deltas); no mid-tick mutation
       } else {
         // restore when id matched non-human
         if (index >= 0) hand.splice(index, 0, humanCard);
