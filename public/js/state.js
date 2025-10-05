@@ -25,9 +25,53 @@ export function initState(seed = {}) {
   return state;
 }
 
+// --- simple subscription mechanism (B1 minimal): shallow-key notifications ---
+const watchers = new Map(); // key -> Set<fn>
+let pendingKeys = new Set();
+let scheduled = false;
+
+export function subscribe(key, fn) {
+  if (!watchers.has(key)) watchers.set(key, new Set());
+  watchers.get(key).add(fn);
+  return () => unsubscribe(key, fn);
+}
+
+export function unsubscribe(key, fn) {
+  const set = watchers.get(key);
+  if (set) set.delete(fn);
+}
+
+function scheduleNotify() {
+  if (scheduled) return;
+  scheduled = true;
+  queueMicrotask(() => {
+    scheduled = false;
+    const keys = Array.from(pendingKeys);
+    pendingKeys = new Set();
+    keys.forEach((k) => {
+      const set = watchers.get(k);
+      if (!set || set.size === 0) return;
+      const value = state[k];
+      set.forEach((fn) => {
+        try { fn(value); } catch {}
+      });
+    });
+  });
+}
+
 export function setState(patch = {}) {
   if (!patch || typeof patch !== 'object') return state;
-  Object.assign(state, patch);
+  const changed = [];
+  for (const [k, v] of Object.entries(patch)) {
+    if (state[k] !== v) {
+      state[k] = v;
+      changed.push(k);
+    }
+  }
+  if (changed.length) {
+    changed.forEach((k) => pendingKeys.add(k));
+    scheduleNotify();
+  }
   return state;
 }
 
@@ -36,4 +80,3 @@ export function addMember(clientId) {
   if (!Array.isArray(state.members)) state.members = [];
   if (!state.members.includes(clientId)) state.members.push(clientId);
 }
-

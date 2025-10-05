@@ -34,7 +34,7 @@
   - 受け入れ: DOM出力（innerHTML/テキスト/属性）が一致。視覚挙動も不変。
 
 ## Phase B（中規模・任意）
-- [ ] B1: `state` 購読の導入（最小）
+- [x] B1: `state` 購読の導入（最小）
   - 追加: `state.subscribe(key, fn)` / `setState` から通知（まず `turn` / `scores` / `log`）。
   - 受け入れ: 既存の明示的UI更新と結果が一致（段階的に置換）。
 

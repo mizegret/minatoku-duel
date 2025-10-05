@@ -132,24 +132,16 @@ function resetScores() { setState({ scores: { charm: 0, oji: 0, total: 0 } }); }
 
 function resetPlayers() { setState({ self: { hand: [], field: { humans: [] } }, opponent: { hand: [], field: { humans: [] } } }); }
 
-function resetTurn() {
-  setState({ turn: 1 });
-  UI.updateTurnIndicator(state.turn, TOTAL_TURNS);
-}
+function resetTurn() { setState({ turn: 1 }); }
 
-function resetLog() {
-  setState({ log: [] });
-  UI.renderLog(state.log);
-}
+function resetLog() { setState({ log: [] }); }
 
 // moved to UI: updateScores/updateTurnIndicator/updateDeckCounts
 
 function pushLog(entry) {
-  state.log.unshift(entry);
-  if (state.log.length > 12) {
-    state.log.length = 12;
-  }
-  UI.renderLog(state.log);
+  const next = [entry, ...state.log];
+  if (next.length > 12) next.length = 12;
+  setState({ log: next });
 }
 
 // Compute displayed round number based on phase/half/turn owner (A3)
@@ -507,6 +499,11 @@ function navigateToRoom(roomId) {
 async function init() {
   await loadEnvironment();
   await loadCards();
+
+  // B1: subscribe minimal keys to UI updates
+  subscribe('turn', (v) => UI.updateTurnIndicator(v ?? state.turn, TOTAL_TURNS));
+  subscribe('scores', (v) => UI.updateScores(v ?? state.scores));
+  subscribe('log', (v) => UI.renderLog(Array.isArray(v) ? v : state.log));
 
   handleInitialRoute(history.state);
 
