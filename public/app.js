@@ -18,6 +18,16 @@ const IS_LOCAL = ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(location.
 
 // Networking is handled inside Net (see js/net/ably.js)
 
+// Logging: show only authoritative, user-meaningful entries
+const LOG_FILTER = { network: false, state: false, event: true, move: true };
+const LOG_KEYS = { action: null, turnStart: null, turnMsg: null, turnEnd: null };
+function shouldLog(keyName, key) {
+  if (!key) return true;
+  if (LOG_KEYS[keyName] === key) return false;
+  LOG_KEYS[keyName] = key;
+  return true;
+}
+
 function generateRoomId() {
   const raw = crypto.randomUUID().replace(/-/g, '').slice(0, 8);
   return raw.toLowerCase();
@@ -266,14 +276,12 @@ function formatLastAction(la, actorLabel) {
 
 function handleJoinMessage(message) {
   const data = message?.data ?? {};
-  logAction('event', `join 受信: ${data.clientId ?? 'unknown'}`);
   if (data.clientId) addMember(data.clientId);
   ensureStarted();
 }
 
 function handleStartMessage(message) {
   const data = message?.data ?? {};
-  logAction('event', `start 受信: host=${data.hostId ?? 'unknown'} members=${Array.isArray(data.members) ? data.members.length : 0}`);
   setState({ hostId: data.hostId ?? null });
   setState({ isHost: !!(data.hostId ?? null) && (data.hostId === getClientId()), started: true });
   // Host 側では、既に ensureStarted() で配布済みの hands/decks を保持する。
@@ -367,30 +375,6 @@ function applyStateSnapshot(snapshot) {
     }
     UI.renderGame(state);
 
-    // ログ強化: 直近アクションのカード名を明示
-    const la = snapshot?.lastAction;
-    if (la && la.type) {
-      const actorIsMe = !!(la.actorId && la.actorId === myId);
-      if (!actorIsMe) {
-        const actorLabel = '相手';
-        const msg = formatLastAction(la, actorLabel);
-        if (msg) logAction('move', msg);
-      }
-    } else {
-      // 最小実装: 受信確認
-      logAction('state', `state 受信: round=${round} phase=${phase}`);
-    }
-
-    // ターン終了時スキル（直近行動の後に出す）
-    const te = snapshot?.turnEnd;
-    if (te && (Number.isFinite(te.charm) || Number.isFinite(te.oji))) {
-      const mine = !!(te.actorId && te.actorId === myId);
-      const parts = [];
-      if (Number.isFinite(te.charm) && te.charm) parts.push(`魅力+${te.charm}`);
-      if (Number.isFinite(te.oji) && te.oji) parts.push(`好感度+${te.oji}`);
-      if (parts.length) logAction('event', `${mine ? 'あなた' : '相手'}：スキル発動（終了時） ${parts.join(' / ')}`);
-    }
-
     // 通知とアクション制御
     setNotice('');
     if (phase === 'ended' || phase === 'game-over' || round > TOTAL_TURNS) {
@@ -398,14 +382,18 @@ function applyStateSnapshot(snapshot) {
       setNotice('ゲーム終了');
     } else if (myTurn) {
       unlockActions();
-      logAction('state', `あなたのターン（ラウンド ${displayRound}）`);
+      const turnKey = `turn:${round}:${turnOwner || ''}`;
+      if (shouldLog('turnMsg', turnKey)) logAction('state', `あなたのターン（ラウンド ${displayRound}）`);
       // skills: show start-of-turn deltas right after the turn message
       const ts = snapshot?.turnStart;
       if (ts && (Number.isFinite(ts.charm) || Number.isFinite(ts.oji))) {
-        const parts = [];
-        if (Number.isFinite(ts.charm) && ts.charm) parts.push(`魅力+${ts.charm}`);
-        if (Number.isFinite(ts.oji) && ts.oji) parts.push(`好感度+${ts.oji}`);
-        if (parts.length) logAction('event', `あなた：スキル発動（開始時） ${parts.join(' / ')}`);
+        const startKey = `start:${round}:${turnOwner || ''}:${ts.charm||0}:${ts.oji||0}`;
+        if (shouldLog('turnStart', startKey)) {
+          const parts = [];
+          if (Number.isFinite(ts.charm) && ts.charm) parts.push(`魅力+${ts.charm}`);
+          if (Number.isFinite(ts.oji) && ts.oji) parts.push(`好感度+${ts.oji}`);
+          if (parts.length) logAction('event', `あなた：スキル発動（開始時） ${parts.join(' / ')}`);
+        }
       }
     } else {
       lockActions();
@@ -414,11 +402,37 @@ function applyStateSnapshot(snapshot) {
         // optionally log opponent start-of-turn skills as well
         const ts = snapshot?.turnStart;
         if (ts && (Number.isFinite(ts.charm) || Number.isFinite(ts.oji))) {
-          const parts = [];
-          if (Number.isFinite(ts.charm) && ts.charm) parts.push(`魅力+${ts.charm}`);
-          if (Number.isFinite(ts.oji) && ts.oji) parts.push(`好感度+${ts.oji}`);
-          if (parts.length) logAction('event', `相手：スキル発動（開始時） ${parts.join(' / ')}`);
+          const startKey = `start:${round}:${turnOwner || ''}:${ts.charm||0}:${ts.oji||0}`;
+          if (shouldLog('turnStart', startKey)) {
+            const parts = [];
+            if (Number.isFinite(ts.charm) && ts.charm) parts.push(`魅力+${ts.charm}`);
+            if (Number.isFinite(ts.oji) && ts.oji) parts.push(`好感度+${ts.oji}`);
+            if (parts.length) logAction('event', `相手：スキル発動（開始時） ${parts.join(' / ')}`);
+          }
         }
+      }
+    }
+
+    // 行動ログ（権威のみ、重複防止）
+    const la = snapshot?.lastAction;
+    if (la && la.type) {
+      const actorIsMe = !!(la.actorId && la.actorId === myId);
+      const actorLabel = actorIsMe ? 'あなた' : '相手';
+      const msg = formatLastAction(la, actorLabel);
+      const aKey = `act:${round}:${Number.isFinite(snapshot?.roundHalf)?snapshot.roundHalf:0}:${la.type}:${la.actorId || ''}:${la.cardName || ''}:${la.charm||0}:${la.oji||0}`;
+      if (msg && shouldLog('action', aKey)) logAction('move', msg);
+    }
+
+    // ターン終了時スキル（直近行動の後ろに出す、重複防止）
+    const te = snapshot?.turnEnd;
+    if (te && (Number.isFinite(te.charm) || Number.isFinite(te.oji))) {
+      const mine = !!(te.actorId && te.actorId === myId);
+      const eKey = `end:${round}:${te.actorId || ''}:${te.charm||0}:${te.oji||0}`;
+      if (shouldLog('turnEnd', eKey)) {
+        const parts = [];
+        if (Number.isFinite(te.charm) && te.charm) parts.push(`魅力+${te.charm}`);
+        if (Number.isFinite(te.oji) && te.oji) parts.push(`好感度+${te.oji}`);
+        if (parts.length) logAction('event', `${mine ? 'あなた' : '相手'}：スキル発動（終了時） ${parts.join(' / ')}`);
       }
     }
 
@@ -573,14 +587,12 @@ function ensureSingleAction(callback) {
 }
 
 function logAction(type, message) {
+  if (LOG_FILTER[type] === false) return;
   pushLog({ type, message, at: Date.now() });
 }
 
-function logButtonAction(type, message, callback) {
-  return ensureSingleAction(() => {
-    callback();
-    logAction(type, message);
-  });
+function logButtonAction(_type, _message, callback) {
+  return ensureSingleAction(() => { callback(); });
 }
 
 // --- minimal member helpers ---
