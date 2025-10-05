@@ -73,16 +73,7 @@ export function handleMoveMessage(message, ctx) {
     return;
   }
 
-  // base score bucket
-  const scores = game.scoresById[actorId] ?? { charm: 0, oji: 0, total: 0 };
-
-  // A5: score helper
-  function applyScoreDelta(s, { charm = 0, oji = 0 } = {}) {
-    s.charm = (s.charm || 0) + charm;
-    s.oji = (s.oji || 0) + oji;
-    s.total = s.charm + s.oji;
-    return s;
-  }
+  // Scores are finalized at the end of the handler from (field + action deltas).
 
   // members / opponent
   const members = getMembers();
@@ -110,8 +101,7 @@ export function handleMoveMessage(message, ctx) {
         field.humans.push(humanOnField);
         logAction?.('event', `summon: ${humanCard.name}`);
         lastAction.cardName = humanCard.name;
-        // M4: use SCORE_RULES (same result as before)
-        applyScoreDelta(scores, { charm: Number(SCORE_RULES?.summon?.charm) || 1 });
+        // scoring is handled by aggregator (field + rules); no mid-tick mutation
       } else {
         // restore when id matched non-human
         if (index >= 0) hand.splice(index, 0, humanCard);
@@ -130,12 +120,11 @@ export function handleMoveMessage(message, ctx) {
         if (deco) {
           decorations.push({ id: deco.id, name: deco.name });
           target.decorations = decorations;
-          // M4: per-card adjustment via SCORE_RULES (matches previous behavior)
+          // M4: per-card adjustment for lastAction (aggregator recalculates final scores)
           const dCharm = (SCORE_RULES?.decorate?.useCardCharm && Number.isFinite(deco?.charm))
             ? Number(deco.charm)
             : Number(SCORE_RULES?.decorate?.defaultCharm ?? 1);
           const dOji = Number(SCORE_RULES?.decorate?.defaultOji ?? 0);
-          applyScoreDelta(scores, { charm: dCharm, oji: dOji });
           lastAction.cardName = deco.name;
           lastAction.charm = dCharm;
           lastAction.oji = dOji;
@@ -160,11 +149,7 @@ export function handleMoveMessage(message, ctx) {
     const { card: act } = popFirstByIdOrType(hand, { cardId: data.cardId, type: 'action' });
     if (act) {
       lastAction.cardName = act.name;
-      // M4: base from SCORE_RULES (same as +1/+1)
-      applyScoreDelta(scores, {
-        charm: Number(SCORE_RULES?.play?.baseCharm ?? 1),
-        oji: Number(SCORE_RULES?.play?.baseOji ?? 1),
-      });
+      // base deltas are tracked; final scoring is aggregated later
       // M3: accumulate for verification (clamp to >=0 progressively like runtime)
       const ensureDelta = (id) => (game._actionDeltasById[id] ||= { charm: 0, oji: 0 });
       const dSelf = ensureDelta(actorId);
@@ -181,21 +166,16 @@ export function handleMoveMessage(message, ctx) {
         const delta = Number(e.value) || 0;
         if (!delta) continue;
         const targetId = (e.target === 'opponent') ? opponent : actorId;
-        const tScores = game.scoresById[targetId] ?? { charm: 0, oji: 0, total: 0 };
         if (e.stat === 'charm') {
-          tScores.charm = Math.max(0, tScores.charm + delta);
           if (targetId === actorId) dCharmSum += delta;
           // M3 aggregate
           const d = ensureDelta(targetId);
           d.charm = Math.max(0, d.charm + delta);
         } else if (e.stat === 'oji') {
-          tScores.oji = Math.max(0, tScores.oji + delta);
           if (targetId === actorId) dOjiSum += delta;
           const d = ensureDelta(targetId);
           d.oji = Math.max(0, d.oji + delta);
         }
-        tScores.total = tScores.charm + tScores.oji;
-        game.scoresById[targetId] = tScores;
       }
       if (dCharmSum) lastAction.charm = dCharmSum;
       if (dOjiSum) lastAction.oji = dOjiSum;
