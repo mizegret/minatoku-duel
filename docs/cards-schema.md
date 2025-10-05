@@ -29,9 +29,27 @@ ID 規約（共通）
   - `age: number`（仮の範囲: 20–35 を推奨。TODO: 決定後に確定）
   - `rarity: 'UR' | 'SR' | 'R' | 'N'`（大文字固定、Enum）
   - `baseCharm: number`（基礎の魅力度）
-- 非対象（M0時点では入れない）:
-  - `tags`, `flavor`, `skills`, `baseOji`（予約/将来検討）
+- 任意（保持のみ・M0/M1で挙動不変）:
+  - `skills?: Skill[]` 人物固有の受動/誘発効果（場にいる間のみ有効）
+  - `baseOji?: number` 将来用（未指定=0）
   - M2 で場に `baseCharm` を保持（スコア加算は現行+1のまま）。
+
+### Skill（human 専用・保持のみ）
+```
+type Trigger = 'onTurnStart' | 'onTurnEnd' | 'onSummon';
+type Skill = {
+  id: string;       // カード内ユニーク
+  name: string;     // 表示名
+  text: string;     // 説明（必須: なぜ魅力 or オジ好感度が変化するのか“理由”を1行で）
+  triggers: Trigger[]; // 発火タイミング（所有者基準）
+  effects: Effect[];   // Action と同型（op/stat/target/value）
+}
+```
+
+運用ガイド（M0）
+- 効果は“場に出ている間のみ”有効。手札/山札では発動しない。
+- 1人あたりスキルは 0〜1 を推奨（将来複数可）。同名スキルが複数体いれば重ねがけ可。
+- `text` は世界観テキスト＋ゲーム的理由を含める（例:「飲むペースを常に合わせる気配りで、オジは心地よさを感じ好感度+1」）。
 
 （注）年齢の下限はテーマ/表現上の配慮として 20 を仮置き。飲酒表現が登場するため。上限は 35 を仮置き。いずれも TODO として後日調整。
 

@@ -1,6 +1,14 @@
 {
   "cards": [
-    { "id": "h_minami", "name": "西青山みなみ", "type": "human", "age": 24, "rarity": "UR", "baseCharm": 2 },
+    { "id": "h_minami", "name": "西青山みなみ", "type": "human", "age": 24, "rarity": "UR", "baseCharm": 2,
+      "skills": [
+        { "id": "pace_match", "name": "気配りシンク",
+          "text": "飲むペースを常に合わせる気配りで、オジは自分のペースを乱されず心地よさを感じ好感度+1。",
+          "triggers": ["onTurnStart"],
+          "effects": [ { "op": "add", "stat": "oji", "target": "self", "value": 1 } ]
+        }
+      ]
+    },
 
     { "id": "h_rina", "name": "白金りな", "type": "human", "age": 22, "rarity": "SR", "baseCharm": 1 },
 
