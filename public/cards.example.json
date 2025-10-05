@@ -1,0 +1,22 @@
+{
+  "cards": [
+    { "id": "h_minami", "name": "西青山みなみ", "type": "human", "age": 24, "baseCharm": 2, "skills": [
+      { "id": "s_glance", "name": "チラ見せグラス", "text": "召喚時に魅力+1", "triggers": ["onSummon"], "effects": [
+        { "op": "add", "stat": "charm", "target": "self", "value": 1 }
+      ]}
+    ]},
+
+    { "id": "h_rina", "name": "白金りな", "type": "human", "age": 22, "baseCharm": 1 },
+
+    { "id": "d_champagne", "name": "シャンパン・タワー", "type": "decoration", "charm": 2 },
+    { "id": "d_brandbag", "name": "ブランドバッグ", "type": "decoration", "charm": 1, "oji": 1 },
+
+    { "id": "a_selfie", "name": "インスタ自慢", "type": "action", "effect": [
+      { "op": "add", "stat": "charm", "target": "self", "value": 1 }
+    ]},
+    { "id": "a_whisper", "name": "トイレで陰口", "type": "action", "effect": [
+      { "op": "add", "stat": "oji", "target": "opponent", "value": -1 }
+    ]}
+  ]
+}
+
