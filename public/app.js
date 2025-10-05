@@ -15,10 +15,7 @@ const deckSelfCount = document.getElementById('deck-self-count');
 const deckOpponentCount = document.getElementById('deck-opponent-count');
 const turnLabel = document.getElementById('turn-indicator');
 const actionLog = document.getElementById('action-log');
-const actionButtons = [
-  document.getElementById('action-play'),
-  document.getElementById('action-skip'),
-];
+const actionButtons = [];
 
 const ROOM_ID_PATTERN = /^[a-z0-9-]{8}$/;
 const ENV_ENDPOINT = '/env';
@@ -106,6 +103,7 @@ async function loadCards() {
         type: String(c.type ?? ''),
         charm: typeof c.charm === 'number' ? c.charm : undefined,
         oji: typeof c.oji === 'number' ? c.oji : undefined,
+        effect: Array.isArray(c.effect) ? c.effect : undefined,
       };
       if (item.type === 'human') humans.push(item);
       else if (item.type === 'decoration') decorations.push(item);
@@ -394,6 +392,48 @@ function handleMoveMessage(message) {
     } else {
       logAction('event', 'decorate: 場に人間がいないため無視');
     }
+  } else if (data.action === 'play') {
+    // ムーブ（所作）: actionカードのeffectを適用
+    // サーバ側ガード：場に人間がいなければ無視
+    const myField = game.fieldById?.[actorId] ?? { humans: [] };
+    if (!Array.isArray(myField.humans) || myField.humans.length === 0) {
+      logAction('event', 'play: 場に人間がいないため無視');
+      // 手番は消費する（1アクション扱い）か？→ 現状は消費とするためこのまま後続進行。
+      // 消費したくない場合は return; で早期終了に変更可能。
+    }
+    const hand = Array.isArray(game.handsById?.[actorId]) ? game.handsById[actorId] : [];
+    let idx = -1;
+    if (data.cardId) idx = hand.findIndex((c) => c?.id === data.cardId);
+    if (idx < 0) idx = hand.findIndex((c) => c?.type === 'action');
+    if (idx >= 0) {
+      const act = hand.splice(idx, 1)[0];
+      lastAction.cardName = act.name;
+      // effectの合計を計算しつつ、対象に適用
+      let dCharmSum = 0;
+      let dOjiSum = 0;
+      const effects = Array.isArray(act?.effect) ? act.effect : [];
+      for (const e of effects) {
+        if (!e || e.op !== 'add') continue;
+        const delta = Number(e.value) || 0;
+        if (!delta) continue;
+        const targetId = (e.target === 'opponent') ? opponent : actorId;
+        const tScores = game.scoresById[targetId] ?? { charm: 0, oji: 0, total: 0 };
+        if (e.stat === 'charm') {
+          tScores.charm = Math.max(0, tScores.charm + delta);
+          if (targetId === actorId) dCharmSum += delta; // 自分に与えた分を表示用に集計
+        } else if (e.stat === 'oji') {
+          tScores.oji = Math.max(0, tScores.oji + delta);
+          if (targetId === actorId) dOjiSum += delta;
+        }
+        tScores.total = tScores.charm + tScores.oji;
+        game.scoresById[targetId] = tScores;
+      }
+      if (dCharmSum) lastAction.charm = dCharmSum;
+      if (dOjiSum) lastAction.oji = dOjiSum;
+      logAction('event', `play: ${act.name}`);
+    } else {
+      logAction('event', 'play: 手札にアクションが見つからないため無視');
+    }
   }
   game.fieldById[actorId] = field;
 
@@ -506,6 +546,12 @@ function applyStateSnapshot(snapshot) {
         if (Number.isFinite(la.oji) && la.oji) delta.push(`好感度+${la.oji}`);
         const tail = delta.length ? `（${delta.join(' / ')}）` : '';
         msg = `${actorLabel}：装飾 → ${la.cardName ?? ''} ${tail}`;
+      } else if (la.type === 'play') {
+        const delta = [];
+        if (Number.isFinite(la.charm) && la.charm) delta.push(`魅力+${la.charm}`);
+        if (Number.isFinite(la.oji) && la.oji) delta.push(`好感度+${la.oji}`);
+        const tail = delta.length ? `（${delta.join(' / ')}）` : '';
+        msg = `${actorLabel}：ムーブ → ${la.cardName ?? ''} ${tail}`;
       }
       else if (la.type === 'play') msg = `${actorLabel}：アクション`;
       else if (la.type === 'skip') msg = `${actorLabel}：スキップ`;
@@ -1019,23 +1065,25 @@ async function init() {
         void publishMove({ action: 'decorate', cardId });
       });
       action();
+    } else if (cardType === 'action') {
+      // クライアント側ガード：場に人間がいなければ使えない
+      const hasSelfHuman = Array.isArray(state.self?.field?.humans) && state.self.field.humans.length > 0;
+      if (!hasSelfHuman) {
+        alert('ムーブを使う前に、人間を召喚してください');
+        return;
+      }
+      const ok = window.confirm(`このムーブを使いますか？\n${cardName}`);
+      if (!ok) return;
+      const action = logButtonAction('play', `ムーブ：${cardName}`, () => {
+        void publishMove({ action: 'play', cardId });
+      });
+      action();
     }
   });
 
   // Startボタンは廃止（自動開始）
   // 下部の装飾ボタンは廃止（手札クリックで装飾）
-  document.getElementById('action-play')?.addEventListener(
-    'click',
-    logButtonAction('play', 'アクション', () => {
-      void publishMove({ action: 'play' });
-    }),
-  );
-  document.getElementById('action-skip')?.addEventListener(
-    'click',
-    logButtonAction('skip', 'スキップ', () => {
-      void publishMove({ action: 'skip' });
-    }),
-  );
+  // 下部のアクション/スキップボタンは Mock のため削除（手札クリック運用）
 
 }
 

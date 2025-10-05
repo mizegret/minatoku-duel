@@ -17,10 +17,15 @@
     { "id": "deco-009", "type": "decoration", "name": "プラダサングラス", "charm": 1 },
     { "id": "deco-010", "type": "decoration", "name": "ボッテガカードケース", "charm": 1 },
 
-    { "id": "act-001", "type": "action", "name": "インスタ自慢" },
-    { "id": "act-002", "type": "action", "name": "ストーリーズ連投" },
-    { "id": "act-003", "type": "action", "name": "トイレで陰口" },
-    { "id": "act-004", "type": "action", "name": "VIP席確保" },
-    { "id": "act-005", "type": "action", "name": "タクシー直帰" }
+    { "id": "act-001", "type": "action", "name": "テーブル下の足タッチ",
+      "effect": [{ "target": "self", "stat": "oji", "op": "add", "value": 1 }] },
+    { "id": "act-002", "type": "action", "name": "カウンター下の小指タッチ",
+      "effect": [{ "target": "self", "stat": "oji", "op": "add", "value": 1 }] },
+    { "id": "act-003", "type": "action", "name": "ささやきエスコート",
+      "effect": [{ "target": "self", "stat": "oji", "op": "add", "value": 1 }] },
+    { "id": "act-004", "type": "action", "name": "おしぼりケア",
+      "effect": [{ "target": "self", "stat": "oji", "op": "add", "value": 1 }] },
+    { "id": "act-005", "type": "action", "name": "乾杯グラス合わせ",
+      "effect": [{ "target": "self", "stat": "oji", "op": "add", "value": 1 }] }
   ]
 }
