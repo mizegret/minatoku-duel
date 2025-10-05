@@ -233,28 +233,19 @@ export function handleMoveMessage(message, ctx) {
     drawCard(game.turnOwner, game);
   }
 
-  // finalize actor score (existing behavior: overwrite after effects)
-  scores.total = scores.charm + scores.oji; // keep final overwrite (behavior unchanged)
-  game.scoresById[actorId] = scores;
-
-  const players = buildPlayers(game, members2);
-  // M3: verify aggregated scores (field + action deltas) vs runtime scores
+  // SWITCH: recompute scores from field + accumulated action deltas (source of truth)
   try {
     const byId = game._cardsById || buildCardIndex(state.cardsByType);
     for (const pid of members2) {
-      const field = game.fieldById?.[pid] ?? { humans: [] };
-      const fieldScore = scoreField(field, byId);
+      const fieldP = game.fieldById?.[pid] ?? { humans: [] };
+      const f = scoreField(fieldP, byId);
       const d = game._actionDeltasById?.[pid] ?? { charm: 0, oji: 0 };
-      const agg = { charm: fieldScore.charm + d.charm, oji: fieldScore.oji + d.oji };
-      agg.total = agg.charm + agg.oji;
-      const live = game.scoresById?.[pid] ?? { charm: 0, oji: 0, total: 0 };
-      if (agg.charm !== live.charm || agg.oji !== live.oji || agg.total !== live.total) {
-        // warn only (do not use logAction to avoid UI log change)
-        console.warn('[score][m3-verify] mismatch', { pid, agg, live, fieldScore, deltas: d });
-      }
+      const fin = { charm: (f.charm || 0) + (d.charm || 0), oji: (f.oji || 0) + (d.oji || 0) };
+      fin.total = fin.charm + fin.oji;
+      game.scoresById[pid] = fin;
     }
-  } catch (err) {
-    console.warn('[score][m3-verify] error', err);
-  }
+  } catch {}
+
+  const players = buildPlayers(game, members2);
   publishState({ round, turnOwner: game.turnOwner, players, phase, roundHalf: game.half, lastAction });
 }
