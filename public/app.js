@@ -367,15 +367,30 @@ function handleMoveMessage(message) {
       logAction('event', 'summon: 手札に一致カードなし');
     }
   } else if (data.action === 'decorate') {
+    // 付与先（先頭の人間）を決定
     if (field.humans.length > 0) {
       const first = field.humans[0];
       const decorations = first.decorations ?? [];
       if (decorations.length < MAX_DECORATIONS_PER_HUMAN) {
-        const deco = pickCard('decorations');
-        decorations.push({ id: deco.id, name: deco.name });
-        first.decorations = decorations;
-        lastAction.cardName = deco.name;
+        // 手札から対象装飾を取り出す（ID優先、無ければ最初の装飾）
+        const hand = Array.isArray(game.handsById?.[actorId]) ? game.handsById[actorId] : [];
+        let idx = -1;
+        if (data.cardId) idx = hand.findIndex((c) => c?.id === data.cardId);
+        if (idx < 0) idx = hand.findIndex((c) => c?.type === 'decoration');
+        if (idx >= 0) {
+          const deco = hand.splice(idx, 1)[0];
+          decorations.push({ id: deco.id, name: deco.name });
+          first.decorations = decorations;
+          lastAction.cardName = deco.name;
+          logAction('event', `decorate: ${deco.name}`);
+        } else {
+          logAction('event', 'decorate: 手札に装飾が見つからないため無視');
+        }
+      } else {
+        logAction('event', 'decorate: 装飾枠がいっぱいのため無視');
       }
+    } else {
+      logAction('event', 'decorate: 場に人間がいないため無視');
     }
   }
   game.fieldById[actorId] = field;
@@ -985,6 +1000,13 @@ async function init() {
       if (!ok) return;
       const action = logButtonAction('summon', `召喚：${cardName}`, () => {
         void publishMove({ action: 'summon', cardId });
+      });
+      action();
+    } else if (cardType === 'decoration') {
+      const ok = window.confirm(`この装飾を装備しますか？（先頭の人間に付与）\n${cardName}`);
+      if (!ok) return;
+      const action = logButtonAction('decorate', `装飾：${cardName}`, () => {
+        void publishMove({ action: 'decorate', cardId });
       });
       action();
     }
