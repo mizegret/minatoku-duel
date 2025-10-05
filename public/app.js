@@ -212,6 +212,13 @@ function pushLog(entry) {
   setState({ log: next });
 }
 
+function replaceTopLog(entry) {
+  const next = Array.isArray(state.log) ? state.log.slice() : [];
+  if (next.length === 0) { pushLog(entry); return; }
+  next[0] = entry;
+  setState({ log: next });
+}
+
 // Compute displayed round number based on phase/half/turn owner (A3)
 function computeDisplayRound({ phase, round, myTurn, roundHalf }) {
   const r = Number.isFinite(round) ? round : state.turn;
@@ -364,9 +371,20 @@ function applyStateSnapshot(snapshot) {
     // ログ強化: 直近アクションのカード名を明示
     const la = snapshot?.lastAction;
     if (la && la.type) {
-      const actorLabel = la.actorId && la.actorId === myId ? 'あなた' : '相手';
+      const actorIsMe = !!(la.actorId && la.actorId === myId);
+      const actorLabel = actorIsMe ? 'あなた' : '相手';
       const msg = formatLastAction(la, actorLabel);
-      if (msg) logAction('move', msg);
+      if (msg) {
+        // de-dup: if my immediate previous local log was a button action within 1.5s, replace it
+        const top = Array.isArray(state.log) ? state.log[0] : null;
+        const isLocalAction = top && (top.type === ACTIONS.summon || top.type === ACTIONS.decorate || top.type === ACTIONS.play || top.type === ACTIONS.skip);
+        const recent = top && typeof top.at === 'number' ? (Date.now() - top.at) <= 1500 : false;
+        if (actorIsMe && isLocalAction && recent) {
+          replaceTopLog({ type: 'move', message: msg, at: Date.now() });
+        } else {
+          logAction('move', msg);
+        }
+      }
     } else {
       // 最小実装: 受信確認
       logAction('state', `state 受信: round=${round} phase=${phase}`);
