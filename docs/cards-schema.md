@@ -29,6 +29,7 @@ ID 規約（共通）
   - `age: number`（仮の範囲: 20–35 を推奨。TODO: 決定後に確定）
   - `rarity: 'UR' | 'SR' | 'R' | 'N'`（大文字固定、Enum）
   - `baseCharm: number`（基礎の魅力度）
+  - `imageUrl: string`（表示用画像のURL/パス。形式: jpg/png/webp 推奨。例: `/assets/cards/humans/h_minami.webp`）
 - 任意（保持のみ・M0/M1で挙動不変）:
   - `skills?: Skill[]` 人物固有の受動/誘発効果（場にいる間のみ有効）
   - `baseOji?: number` 将来用（未指定=0）
@@ -112,3 +113,11 @@ type Effect = {
 - M2: summon 時に `baseCharm` を場へ保持（加点は現行+1固定）。
 - M3: 別集計器（純関数）を追加し、一致検証のみ実施。
 - M4: `SCORE_RULES` 追加（初期テーブルは現行結果と一致）。
+- 表示/色（M0 ガイド）
+  - カードの基調色は `rarity` によって自動決定（UI 側パレット）。
+  - 推奨パレット（例・将来調整可）:
+    - UR: `#FFD54A`（ゴールド系）
+    - SR: `#C86EFF`（パープル系）
+    - R : `#4FA8FF`（ブルー系）
+    - N : `#9AA0A6`（グレー系）
+  - 予約: `display?.colorOverride` で個別上書き可能にする（現時点では未使用）。

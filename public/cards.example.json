@@ -1,6 +1,7 @@
 {
   "cards": [
     { "id": "h_minami", "name": "西青山みなみ", "type": "human", "age": 24, "rarity": "UR", "baseCharm": 2,
+      "imageUrl": "/assets/cards/humans/h_minami.webp",
       "skills": [
         { "id": "pace_match", "name": "気配りシンク",
           "text": "飲むペースを常に合わせる気配りで、オジは自分のペースを乱されず心地よさを感じ好感度+1。",
@@ -10,7 +11,9 @@
       ]
     },
 
-    { "id": "h_rina", "name": "白金りな", "type": "human", "age": 22, "rarity": "SR", "baseCharm": 1 },
+    { "id": "h_rina", "name": "白金りな", "type": "human", "age": 22, "rarity": "SR", "baseCharm": 1,
+      "imageUrl": "/assets/cards/humans/h_rina.webp"
+    },
 
     { "id": "d_champagne", "name": "シャンパン・タワー", "type": "decoration", "charm": 2 },
     { "id": "d_brandbag", "name": "ブランドバッグ", "type": "decoration", "charm": 1, "oji": 1 },
