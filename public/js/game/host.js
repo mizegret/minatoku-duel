@@ -1,4 +1,4 @@
-import { TOTAL_TURNS, MAX_DECORATIONS_PER_HUMAN, HAND_SIZE, ACTIONS } from '../constants.js';
+import { TOTAL_TURNS, MAX_DECORATIONS_PER_HUMAN, HAND_SIZE, ACTIONS, SCORE_RULES } from '../constants.js';
 import { buildPlayers } from '../utils/players.js';
 import { buildDeck, drawCard, popFirstByIdOrType } from '../utils/deck.js';
 import { buildCardIndex, scoreField } from '../utils/score.js';
@@ -105,8 +105,8 @@ export function handleMoveMessage(message, ctx) {
         field.humans.push(humanOnField);
         logAction?.('event', `summon: ${humanCard.name}`);
         lastAction.cardName = humanCard.name;
-        // fixed MVP scoring (existing behavior)
-        applyScoreDelta(scores, { charm: 1 });
+        // M4: use SCORE_RULES (same result as before)
+        applyScoreDelta(scores, { charm: Number(SCORE_RULES?.summon?.charm) || 1 });
       } else {
         // restore when id matched non-human
         if (index >= 0) hand.splice(index, 0, humanCard);
@@ -125,9 +125,11 @@ export function handleMoveMessage(message, ctx) {
         if (deco) {
           decorations.push({ id: deco.id, name: deco.name });
           target.decorations = decorations;
-          // per-card adjustment (default charm +1, oji +0)
-          const dCharm = Number.isFinite(deco?.charm) ? Number(deco.charm) : 1;
-          const dOji = 0;
+          // M4: per-card adjustment via SCORE_RULES (matches previous behavior)
+          const dCharm = (SCORE_RULES?.decorate?.useCardCharm && Number.isFinite(deco?.charm))
+            ? Number(deco.charm)
+            : Number(SCORE_RULES?.decorate?.defaultCharm ?? 1);
+          const dOji = Number(SCORE_RULES?.decorate?.defaultOji ?? 0);
           applyScoreDelta(scores, { charm: dCharm, oji: dOji });
           lastAction.cardName = deco.name;
           lastAction.charm = dCharm;
@@ -153,13 +155,18 @@ export function handleMoveMessage(message, ctx) {
     const { card: act } = popFirstByIdOrType(hand, { cardId: data.cardId, type: 'action' });
     if (act) {
       lastAction.cardName = act.name;
-      // Note: existing behavior adds +1 to both charm and oji here
-      applyScoreDelta(scores, { charm: 1, oji: 1 });
+      // M4: base from SCORE_RULES (same as +1/+1)
+      applyScoreDelta(scores, {
+        charm: Number(SCORE_RULES?.play?.baseCharm ?? 1),
+        oji: Number(SCORE_RULES?.play?.baseOji ?? 1),
+      });
       // M3: accumulate for verification (clamp to >=0 progressively like runtime)
       const ensureDelta = (id) => (game._actionDeltasById[id] ||= { charm: 0, oji: 0 });
       const dSelf = ensureDelta(actorId);
-      dSelf.charm = Math.max(0, dSelf.charm + 1);
-      dSelf.oji = Math.max(0, dSelf.oji + 1);
+      const baseC = Number(SCORE_RULES?.play?.baseCharm ?? 1);
+      const baseO = Number(SCORE_RULES?.play?.baseOji ?? 1);
+      dSelf.charm = Math.max(0, dSelf.charm + baseC);
+      dSelf.oji = Math.max(0, dSelf.oji + baseO);
       // apply card effects (may update actor or opponent)
       let dCharmSum = 0;
       let dOjiSum = 0;

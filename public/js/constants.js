@@ -26,3 +26,19 @@ export const ACTIONS = {
   play: 'play',
   skip: 'skip',
 };
+
+// SCORE_RULES (M4): externalized scoring table
+// Initial table matches current behavior exactly (no behavior change)
+export const SCORE_RULES = {
+  summon: { charm: 1 },
+  decorate: {
+    useCardCharm: true,      // if true, prefer card.charm; else fallback to defaultCharm
+    defaultCharm: 1,
+    defaultOji: 0,
+  },
+  play: {
+    baseCharm: 1,
+    baseOji: 1,
+    effects: 'add',          // apply Effect(op:'add') as-is
+  },
+};
