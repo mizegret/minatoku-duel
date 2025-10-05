@@ -38,11 +38,11 @@
   - 追加: `state.subscribe(key, fn)` / `setState` から通知（まず `turn` / `scores` / `log`）。
   - 受け入れ: 既存の明示的UI更新と結果が一致（段階的に置換）。
 
-- [ ] B2: Ablyラッパのハンドル化
+- [x] B2: Ablyラッパのハンドル化
   - 変更: `net/ably.js` をファクトリ（`createConnection`）にしてグローバルを閉じ込め。
   - 受け入れ: 接続/attach/join/送受信の挙動・ログが一致。
 
-- [ ] B3: デッキ/手札ユーティリティの整理
+- [x] B3: デッキ/手札ユーティリティの整理
   - 追加: `popFirstByIdOrType(hand, { cardId, type })` を `utils/deck.js` に集約（A4の一般化）。
   - 受け入れ: 現状と完全一致。
 

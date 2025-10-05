@@ -322,22 +322,20 @@ function applyStateSnapshot(snapshot) {
   }
 }
 
+let netHandle = null;
+
 function connectRealtime(roomId) {
   if (!roomId) return;
   if (!state.env?.ABLY_API_KEY) {
     logAction('network', 'Ablyキー未設定のため接続をスキップ');
     return;
   }
-  const c = Net.init({
+  netHandle = Net.createConnection({
     apiKey: state.env.ABLY_API_KEY,
+    channelPrefix: ABLY_CHANNEL_PREFIX,
+    roomId,
     logAction,
     onConnectionStateChange: () => UI.updateStartUI(state.isHost),
-  });
-  if (!c) return;
-  Net.connect({
-    roomId,
-    channelPrefix: ABLY_CHANNEL_PREFIX,
-    logAction,
     onConnected: () => {
       const id = getClientId();
       if (id) addMember(id);
@@ -355,11 +353,11 @@ function connectRealtime(roomId) {
 }
 
 async function publishJoin(roomId) {
-  await Net.publishJoin({ roomId, logAction });
+  if (netHandle) await netHandle.publishJoin({ roomId });
 }
 
 function getClientId() {
-  return Net.getClientId();
+  return netHandle?.getClientId?.() ?? Net.getClientId?.() ?? null;
 }
 
 async function publishStart(members = []) {
@@ -370,11 +368,12 @@ async function publishStart(members = []) {
     members: members.length ? members : [{ clientId: getClientId() }],
     startedAt: Date.now(),
   };
-  await Net.publishStart(payload, { logAction });
+  if (netHandle) await netHandle.publishStart(payload); else await Net.publishStart(payload, { logAction });
 }
 
 async function publishMove(move = {}) {
-  await Net.publishMove({ ...move, round: state.turn }, { logAction });
+  if (netHandle) await netHandle.publishMove({ ...move, round: state.turn });
+  else await Net.publishMove({ ...move, round: state.turn }, { logAction });
 }
 
 async function publishState(snapshot = {}) {
@@ -393,7 +392,7 @@ async function publishState(snapshot = {}) {
     log: snapshot.log ?? state.log.slice(-5),
     updatedAt: Date.now(),
   };
-  await Net.publishState(enriched, { logAction });
+  if (netHandle) await netHandle.publishState(enriched); else await Net.publishState(enriched, { logAction });
 }
 
 // detachRealtime was unused; removed
@@ -534,7 +533,7 @@ async function init() {
 // updateStartUI moved to UI.updateStartUI
 
 function ensureStarted() {
-  if (!Net.isConnected()) return;
+  if (!(netHandle?.isConnected?.() ?? Net.isConnected?.())) return;
   return hostEnsureStarted({
     state,
     publishStart,
