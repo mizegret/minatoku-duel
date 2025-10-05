@@ -68,17 +68,21 @@
   - 受け入れ: 現状ルールと完全一致（スコア/ログ/順序は不変）。
   - 影響: `public/js/constants.js`（SCORE_RULES; commit: 432d690）, `public/js/game/host.js`（参照; commit: 432d690）
 
-- [ ] [M5] カードデータのライトバリデーション
+- [x] [M5] カードデータのライトバリデーション
   - 目的: 早期にデータ不整合を検知。
   - 変更: `loadCards()` に必須キー/型チェック（不足は警告＋妥当なデフォルト補完）。
+    - human: baseCharm 未指定→0、rarity→UR/SR/R/Nへ正規化、age 未指定は警告のみ
+    - decoration: rarity 正規化、charmBonus 未指定→(charm||1)、slotsUsed 未指定→1、text 未指定は警告
+    - action: rarity 正規化、effect 未指定→[]、text 未指定は警告
+    - 共通: id 重複を警告
   - 受け入れ: 既存cards.jsonは通過。誤データ時はconsole.warnのみ（動作は継続）。
-  - 影響: `public/app.js:loadCards`
+  - 影響: `public/app.js:loadCards`（commit: 32f4a63）
 
-- [ ] [M6] ランダムseedの保存（任意）
+- [x] [M6] ランダムseedの保存（任意）
   - 目的: リプレイ/検証しやすくするため、配布時にseedをstateへ保存。
   - 変更: `ensureStarted()` で `state.hostGame.seed` を保持（将来shuffle再現に使用）。
   - 受け入れ: 現挙動不変（seed未使用）。
-  - 影響: `public/js/game/host.js`
+  - 影響: `public/js/game/host.js`（commit: 32f4a63）
 
 - [ ] [SWITCH] スコア計算の切替（仕様変更タイミング）
   - 条件: M1〜M4が安定し、集計器の結果が十分に信用できること。
