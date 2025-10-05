@@ -152,6 +152,32 @@ function pushLog(entry) {
   UI.renderLog(state.log);
 }
 
+// Format lastAction message (A2: extracted helper)
+function formatLastAction(la, actorLabel) {
+  if (!la || !la.type) return '';
+  if (la.type === ACTIONS.summon) {
+    return `${actorLabel}：召喚 → ${la.cardName ?? ''}`;
+  }
+  if (la.type === ACTIONS.decorate) {
+    const delta = [];
+    if (Number.isFinite(la.charm) && la.charm) delta.push(`魅力+${la.charm}`);
+    if (Number.isFinite(la.oji) && la.oji) delta.push(`好感度+${la.oji}`);
+    const tail = delta.length ? `（${delta.join(' / ')}）` : '';
+    return `${actorLabel}：装飾 → ${la.cardName ?? ''} ${tail}`;
+  }
+  if (la.type === ACTIONS.play) {
+    const delta = [];
+    if (Number.isFinite(la.charm) && la.charm) delta.push(`魅力+${la.charm}`);
+    if (Number.isFinite(la.oji) && la.oji) delta.push(`好感度+${la.oji}`);
+    const tail = delta.length ? `（${delta.join(' / ')}）` : '';
+    return `${actorLabel}：ムーブ → ${la.cardName ?? ''} ${tail}`;
+  }
+  if (la.type === ACTIONS.skip) {
+    return `${actorLabel}：このターンは様子見`;
+  }
+  return '';
+}
+
 // moved to UI: renderLog
 
 // connection watcher lives in Net.init/connect
@@ -270,25 +296,7 @@ function applyStateSnapshot(snapshot) {
     const la = snapshot?.lastAction;
     if (la && la.type) {
       const actorLabel = la.actorId && la.actorId === myId ? 'あなた' : '相手';
-      let msg = '';
-      if (la.type === ACTIONS.summon) msg = `${actorLabel}：召喚 → ${la.cardName ?? ''}`;
-      else if (la.type === ACTIONS.decorate) {
-        const delta = [];
-        if (Number.isFinite(la.charm) && la.charm) delta.push(`魅力+${la.charm}`);
-        if (Number.isFinite(la.oji) && la.oji) delta.push(`好感度+${la.oji}`);
-        const tail = delta.length ? `（${delta.join(' / ')}）` : '';
-        msg = `${actorLabel}：装飾 → ${la.cardName ?? ''} ${tail}`;
-      } else if (la.type === ACTIONS.play) {
-        const delta = [];
-        if (Number.isFinite(la.charm) && la.charm) delta.push(`魅力+${la.charm}`);
-        if (Number.isFinite(la.oji) && la.oji) delta.push(`好感度+${la.oji}`);
-        const tail = delta.length ? `（${delta.join(' / ')}）` : '';
-        msg = `${actorLabel}：ムーブ → ${la.cardName ?? ''} ${tail}`;
-      } else if (la.type === ACTIONS.skip) {
-        msg = `${actorLabel}：このターンは様子見`;
-      }
-      else if (la.type === ACTIONS.play) msg = `${actorLabel}：アクション`;
-      else if (la.type === ACTIONS.skip) msg = `${actorLabel}：スキップ`;
+      const msg = formatLastAction(la, actorLabel);
       if (msg) logAction('move', msg);
     } else {
       // 最小実装: 受信確認
