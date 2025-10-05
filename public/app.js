@@ -568,20 +568,7 @@ async function publishState(snapshot = {}) {
   }
 }
 
-function detachRealtime() {
-  lastJoinedRoomId = null;
-  if (ablyChannel) {
-    unsubscribeChannelMessages(ablyChannel);
-    ablyChannel.detach();
-    ablyChannel = null;
-  }
-  state.started = false;
-  state.hostId = null;
-  state.isHost = false;
-  state.members = [];
-  state.hostGame = null;
-  UI.updateStartUI(state.isHost);
-}
+// detachRealtime was unused; removed
 
 // dev-only advanceTurn removed
 
@@ -684,11 +671,7 @@ function navigateToRoom(roomId) {
   showRoom(roomId);
 }
 
-function navigateToLobby(withNotice) {
-  history.pushState({}, '', '/');
-  detachRealtime();
-  showLobby(withNotice);
-}
+// navigateToLobby was unused; removed
 
 async function init() {
   await loadEnvironment();
