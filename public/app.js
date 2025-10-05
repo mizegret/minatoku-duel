@@ -4,7 +4,7 @@ import { ensureStarted as hostEnsureStarted, handleMoveMessage as hostHandleMove
 import * as UI from './js/ui/render.js';
 import { bindInputs } from './js/ui/inputs.js';
 import * as Net from './js/net/ably.js';
-import { state, setState, addMember } from './js/state.js';
+import { state, setState, addMember, subscribe } from './js/state.js';
 
 const lobbySection = document.getElementById('screen-lobby');
 const roomSection = document.getElementById('screen-room');
