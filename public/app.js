@@ -1,3 +1,7 @@
+import { DEBUG, CARD_TYPES, TOTAL_TURNS, ABLY_CHANNEL_PREFIX, MAX_DECORATIONS_PER_HUMAN } from './js/constants.js';
+import { randInt, shuffle } from './js/utils/random.js';
+import { buildPlayers } from './js/utils/players.js';
+
 const lobbySection = document.getElementById('screen-lobby');
 const roomSection = document.getElementById('screen-room');
 const createButton = document.getElementById('create-room');
@@ -22,9 +26,7 @@ const actionButtons = [
 const ROOM_ID_PATTERN = /^[a-z0-9-]{8}$/;
 const ENV_ENDPOINT = '/env';
 const IS_LOCAL = ['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(location.hostname);
-const TOTAL_TURNS = 5;
-const ABLY_CHANNEL_PREFIX = 'room:';
-const MAX_DECORATIONS_PER_HUMAN = 2;
+// moved to js/constants.js
 
 let ablyClient = null;
 let ablyChannel = null;
@@ -978,38 +980,8 @@ function drawCard(playerId, game) {
   return card;
 }
 
-function randInt(max) {
-  if (max <= 0) return 0;
-  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-    const buf = new Uint32Array(1);
-    crypto.getRandomValues(buf);
-    return buf[0] % max;
-  }
-  return Math.floor(Math.random() * max);
-}
-
-function shuffle(arr) {
-  const a = arr.slice();
-  for (let i = a.length - 1; i > 0; i -= 1) {
-    const j = randInt(i + 1);
-    if (j !== i) {
-      const t = a[i];
-      a[i] = a[j];
-      a[j] = t;
-    }
-  }
-  return a;
-}
-
-function buildPlayers(game, members) {
-  return members.map((id) => ({
-    clientId: id,
-    hand: Array.isArray(game.handsById?.[id]) ? game.handsById[id] : [],
-    field: game.fieldById?.[id] ?? { humans: [] },
-    scores: game.scoresById?.[id] ?? { charm: 0, oji: 0, total: 0 },
-    deckCount: Array.isArray(game.decksById?.[id]) ? game.decksById[id].length : 0,
-  }));
-}
+// randInt, shuffle -> js/utils/random.js
+// buildPlayers -> js/utils/players.js
 
 function navigateToRoom(roomId) {
   history.pushState({ roomId }, '', `/room/${roomId}`);
@@ -1174,5 +1146,4 @@ function ensureStarted() {
 
 init();
 // ---- Constants / Flags ----------------------------------------------------
-const DEBUG = true;
-const CARD_TYPES = { HUMAN: 'human', DECORATION: 'decoration', ACTION: 'action' };
+// DEBUG, CARD_TYPES -> js/constants.js
