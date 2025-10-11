@@ -1,9 +1,8 @@
-// Pixi adapter UI (P1): draw board with Pixi, DOM shows headers/scores/logs.
-// Default renderer when no query param is provided.
+// Pixi renderer (hybrid): center canvas only（何も描かない）
 
 let pixiApp = null;
 let pixiRoot = null;
-let layers = null; // { fieldSelf, fieldOpp }
+let layers = null; // minimal layer placeholders
 let anchorUpdater = null; // fn to keep canvas aligned to .board
 let pixiLoadPromise = null; // single-flight loader for UMD script
 let pixiInitPromise = null; // single-flight initializer for Application
@@ -89,12 +88,9 @@ async function ensurePixi() {
     });
     pixiRoot.appendChild(pixiApp.view);
 
-  // Layers (field only)
-    layers = {
-      fieldSelf: new PIXI.Container(),
-      fieldOpp: new PIXI.Container(),
-    };
-    pixiApp.stage.addChild(layers.fieldOpp, layers.fieldSelf);
+  // Minimal stage setup（空のコンテナのみ）
+    layers = { root: new PIXI.Container() };
+    pixiApp.stage.addChild(layers.root);
 
     // Force initial anchor sizing right after creation
     try { anchorUpdater && anchorUpdater(); } catch {}
@@ -109,9 +105,9 @@ async function ensurePixi() {
 export function renderGame(state) {
   void ensurePixi();
   prepareLayoutOnce();
-  // Update left-hand via DOM (hybrid mode)
+  // Update left-hand via DOM（ハイブリッド）
   try { renderHandDOM(state?.self?.hand || []); } catch {}
-  try { drawScene(state); } catch {}
+  // Canvas は描画なし（今は空）
 }
 
 export function updateScores({ charm, oji, total }) {
@@ -167,88 +163,8 @@ export function init(context) {
   ctx = context || null;
 }
 
-// --- drawing & interactions ---
-
-function makeRect(PIXI, { x, y, w, h, color = 0x4aa3b5, label, onClick }) {
-  const g = new PIXI.Graphics();
-  g.lineStyle(2, color, 0.9);
-  g.drawRoundedRect(x, y, w, h, 10);
-  if (onClick) {
-    g.eventMode = 'static';
-    g.cursor = 'pointer';
-    g.on('pointertap', onClick);
-  }
-  if (label && (PIXI.Text)) {
-    const t = new PIXI.Text(String(label), { fill: 0xbfe8ef, fontSize: 13, fontFamily: 'sans-serif', align: 'center', wordWrap: true, wordWrapWidth: w - 12 });
-    t.anchor.set(0.5, 0.5);
-    t.x = x + w / 2;
-    t.y = y + h / 2;
-    g.addChild(t);
-  }
-  return g;
-}
-
-function colorForType(type) {
-  if (type === 'human') return 0xd9534f; // red-ish
-  if (type === 'decoration') return 0x5bc0de; // cyan-ish
-  if (type === 'action') return 0x5cb85c; // green-ish
-  return 0x777777;
-}
-
-function drawScene(state) {
-  if (!pixiApp || !layers) return;
-  const PIXI = PIXI_NS || window.PIXI;
-  const W = pixiApp.renderer.width;
-  const H = pixiApp.renderer.height;
-  const pad = 16;
-  const gap = 12;
-
-  // clear (canvas draws fields only)
-  layers.fieldSelf.removeChildren();
-  layers.fieldOpp.removeChildren();
-
-  // Center canvas: two field panes
-  let Rfs, Rfo;
-  Rfs = { x: pad, y: pad, w: Math.floor((W - pad * 3) / 2), h: H - pad * 2 };
-  Rfo = { x: Rfs.x + Rfs.w + pad, y: pad, w: W - pad * 2 - Rfs.w - pad, h: H - pad * 2 };
-
-  layers.fieldSelf.position.set(Rfs.x, Rfs.y);
-  layers.fieldOpp.position.set(Rfo.x, Rfo.y);
-
-  // Optional debug: board outline (disabled by default)
-  // const frame = new PIXI.Graphics();
-  // frame.lineStyle(2, 0xff00aa, 0.4);
-  // frame.drawRoundedRect(1, 1, Math.max(2, W - 2), Math.max(2, H - 2), 10);
-  // layers.fieldSelf.addChild(frame);
-
-  // No hand or log rendering in canvas (handled by DOM)
-
-  // Self field (center-left)
-  const humans = Array.isArray(state?.self?.field?.humans) ? state.self.field.humans : [];
-  const fcols = Math.max(1, humans.length);
-  const fw = Math.max(100, Math.floor((Rfs.w - gap * (fcols - 1)) / fcols));
-  const fh = Math.min(120, Math.max(60, Rfs.h - 10));
-  humans.forEach((h, i) => {
-    const x = i * (fw + gap);
-    const y = Math.max(0, Math.floor((Rfs.h - fh) / 2));
-    const rect = makeRect(PIXI, { x, y, w: fw, h: fh, color: colorForType('human'), label: h?.name || 'human' });
-    layers.fieldSelf.addChild(rect);
-  });
-
-  // Opp field (center-right)
-  const oppHumans = Array.isArray(state?.opponent?.field?.humans) ? state.opponent.field.humans : [];
-  const oc = Math.max(1, oppHumans.length);
-  const ofw = Math.max(100, Math.floor((Rfo.w - gap * (oc - 1)) / oc));
-  const ofh = Math.min(120, Math.max(60, Rfo.h - 10));
-  oppHumans.forEach((h, i) => {
-    const x = i * (ofw + gap);
-    const y = Math.max(0, Math.floor((Rfo.h - ofh) / 2));
-    const rect = makeRect(PIXI, { x, y, w: ofw, h: ofh, color: 0x8888aa, label: h?.name || 'opponent' });
-    layers.fieldOpp.addChild(rect);
-  });
-
-  // no waiting overlay
-}
+// --- drawScene: 現状は何も描かない（将来席やアニメを追加）
+function drawScene(_state) { /* no-op */ }
 
 function prepareLayoutOnce() {
   if (layoutPrepared) return;
