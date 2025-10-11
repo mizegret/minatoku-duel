@@ -3,6 +3,7 @@
 
 let windowNode = null;
 let mounted = false;
+let TowerLib = null;
 
 export async function mountWindow({ PIXI, app, layers, spec = {} }) {
   if (!PIXI || !app || !layers) return null;
@@ -12,11 +13,11 @@ export async function mountWindow({ PIXI, app, layers, spec = {} }) {
     // キャンバス内の余白（窓枠の外側余白）
     inset: 14,
     // 窓枠の太さと角丸
-    frame: { thickness: 12, radius: 16, color: 0x0e2a36, mullion: 0x134252, mullionAlpha: 0.7 },
+    frame: { thickness: 12, radius: 8, color: 0x0e2a36, mullion: 0x134252, mullionAlpha: 0.7 },
     // ガラス内側の余白
     glassPadding: 6,
     // 窓サイズの最大幅比（キャンバス幅に対する％）
-    maxWidthRate: 0.98,
+    maxWidthRate: 0.88,
     // 空の色（上→下）
     skyTop: 0x0a1622,
     skyBottom: 0x0e2430,
@@ -42,6 +43,10 @@ export async function mountWindow({ PIXI, app, layers, spec = {} }) {
       deckAlpha: 0.9,
       glow: 0xfff2cc,
       glowAlpha: 0.08,
+      // 点滅（航空障害灯）
+      blink: { enabled: true, speedHz: 1.2, min: 0.05, max: 0.22 },
+      // デッキの明かり（控えめなチラつき）
+      lights: { enabled: true, base: 0.10, amp: 0.10, speedHz: 0.8 },
     },
   };
   const cfg = merge(defaults, spec);
@@ -63,6 +68,14 @@ export async function mountWindow({ PIXI, app, layers, spec = {} }) {
   const onLayout = () => positionWindow({ PIXI, app, node: windowNode, cfg });
   window.addEventListener('resize', onLayout);
   window.addEventListener('scroll', onLayout, { passive: true });
+
+  // 東京タワーモジュールを読み込み、アニメーション設定
+  try {
+    TowerLib = await import('./tokyo-tower.js');
+    TowerLib.setupTowerAnimation({ app, windowNode, cfg });
+    // 再レイアウトで東京タワーも描画されるように一度呼び直す
+    positionWindow({ PIXI, app, node: windowNode, cfg });
+  } catch {}
 
   mounted = true;
   return windowNode;
@@ -93,6 +106,7 @@ function positionWindow({ PIXI, app, node, cfg }) {
 
   // 都市ビュー（マスクを適用）
   const city = new PIXI.Container();
+  city.name = 'city';
   city.mask = mask;
 
   // ビル群（単純な矩形群）: 画面上端からはみ出さないようにトリミング
@@ -130,8 +144,10 @@ function positionWindow({ PIXI, app, node, cfg }) {
 
   // 東京タワー（必要なら描画）
   let tower = null;
-  if (cfg.tokyoTower?.enabled) {
-    tower = drawTokyoTower({ PIXI, glassW, glassH, topMargin, groundY, cfg: cfg.tokyoTower });
+  if (cfg.tokyoTower?.enabled && TowerLib?.createTower) {
+    try {
+      tower = TowerLib.createTower({ PIXI, glassW, glassH, topMargin, groundY, cfg: cfg.tokyoTower });
+    } catch {}
   }
 
   // ハイライト（ガラスの反射風）
@@ -201,62 +217,3 @@ function hex(n) {
 function merge(a, b) { const o = { ...a }; for (const k in b) { const v = b[k]; o[k] = v && typeof v === 'object' && !Array.isArray(v) ? merge(a[k] || {}, v) : v; } return o; }
 
 // 東京タワー（簡易シルエット）を作成して返す
-function drawTokyoTower({ PIXI, glassW, glassH, topMargin, groundY, cfg }) {
-  const g = new PIXI.Container();
-
-  // 位置・サイズ
-  const x = -glassW / 2 + Math.floor(glassW * cfg.xRate);
-  const maxH = Math.floor(glassH * cfg.heightRate);
-  const baseW = Math.floor(glassW * cfg.baseWidthRate);
-  const topW = Math.max(6, Math.floor(baseW * 0.18));
-  let topY = groundY - maxH;
-  // 上端はガラス上端 + マージンを越えない
-  const minTop = -glassH / 2 + topMargin;
-  if (topY < minTop) {
-    const diff = minTop - topY; // はみ出し分を詰める
-    topY = minTop;
-  }
-
-  // 本体（台形）
-  const body = new PIXI.Graphics();
-  body.beginFill(cfg.body, 1)
-      .drawPolygon([
-        x - baseW / 2, groundY,
-        x + baseW / 2, groundY,
-        x + topW / 2, topY,
-        x - topW / 2, topY,
-      ])
-      .endFill();
-
-  // 展望台（2段）
-  const deckColor = cfg.deck;
-  const deckAlpha = cfg.deckAlpha ?? 0.9;
-  const deck1Y = topY + Math.floor((groundY - topY) * 0.42);
-  const deck2Y = topY + Math.floor((groundY - topY) * 0.18);
-  const deck1W = Math.floor(baseW * 0.62);
-  const deck2W = Math.floor(baseW * 0.36);
-  const deckH = Math.max(6, Math.floor(glassH * 0.012));
-  const deck1 = new PIXI.Graphics();
-  deck1.beginFill(deckColor, deckAlpha)
-       .drawRoundedRect(x - deck1W / 2, deck1Y - deckH / 2, deck1W, deckH, 4)
-       .endFill();
-  const deck2 = new PIXI.Graphics();
-  deck2.beginFill(deckColor, deckAlpha)
-       .drawRoundedRect(x - deck2W / 2, deck2Y - deckH / 2, deck2W, deckH, 4)
-       .endFill();
-
-  // 左縁ハイライト（夜間の照明反射）
-  const edge = new PIXI.Graphics();
-  edge.lineStyle(2, cfg.edge, cfg.edgeAlpha)
-      .moveTo(x - baseW / 2 + 2, groundY)
-      .lineTo(x - topW / 2 + 1, topY);
-
-  // 頂部の微かな光（航空障害灯の雰囲気）
-  const glow = new PIXI.Graphics();
-  glow.beginFill(cfg.glow, cfg.glowAlpha)
-      .drawCircle(x, topY - 6, Math.max(4, Math.floor(glassH * 0.012)))
-      .endFill();
-
-  g.addChild(body, deck1, deck2, edge, glow);
-  return g;
-}
