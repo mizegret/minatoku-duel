@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>港区デュエル</title>
     <link rel="stylesheet" href="/styles.css">
+    <!-- Import Map: three / GLTFLoader / three-vrm を同一インスタンスに固定 -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.152.2/build/three.module.js",
+          "three/examples/jsm/loaders/GLTFLoader": "https://unpkg.com/three@0.152.2/examples/jsm/loaders/GLTFLoader.js",
+          "@pixiv/three-vrm": "https://unpkg.com/@pixiv/three-vrm@2.0.3/lib/three-vrm.module.js"
+        }
+      }
+    </script>
     <script src="https://cdn.ably.com/lib/ably.min-2.js"></script>
     <script src="/app.js" type="module"></script>
   </head>

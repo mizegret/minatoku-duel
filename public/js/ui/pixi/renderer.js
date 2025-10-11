@@ -121,6 +121,22 @@ async function ensurePixi() {
       await table.mountFullTable({ PIXI, app: pixiApp, layers });
     } catch {}
 
+    // Overlay VRM avatar (three.js) — transparent canvas, pointerEvents: none
+    try {
+      const host = document.getElementById('canvas-center');
+      if (host && getComputedStyle(host).position === 'static') host.style.position = 'relative';
+      if (!document.getElementById('three-root') && host) {
+        const div = document.createElement('div');
+        div.id = 'three-root';
+        Object.assign(div.style, { position: 'absolute', inset: '0', width: '100%', height: '100%', pointerEvents: 'none', zIndex: '10' });
+        host.appendChild(div);
+      }
+      const three = await import('../three/avatar.js');
+      await three.ensureAvatarLayer();
+      // Load fixed asset (no query parameter switching)
+      try { await three.loadAvatar('/assets/vrm/sample.vrm'); } catch {}
+    } catch {}
+
     // Force initial anchor sizing right after creation
     try { anchorUpdater && anchorUpdater(); } catch {}
 
