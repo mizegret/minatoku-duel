@@ -90,13 +90,18 @@ async function ensurePixi() {
     pixiRoot.appendChild(pixiApp.view);
 
   // Minimal stage setup（空のコンテナのみ）
-    layers = { root: new PIXI.Container(), bg: new PIXI.Container(), table: new PIXI.Container() };
+    layers = { root: new PIXI.Container(), sky: new PIXI.Container(), bg: new PIXI.Container(), table: new PIXI.Container() };
     pixiApp.stage.addChild(layers.root);
-    // z-order: bg (sofa etc) behind table
+    // z-order: sky (窓/夜景) → bg (sofa) → table
+    layers.root.addChild(layers.sky);
     layers.root.addChild(layers.bg);
     layers.root.addChild(layers.table);
 
-    // Mount background sofa first, then the table
+    // Mount window (sky) → sofa → table
+    try {
+      const windowMod = await import('./window.js');
+      await windowMod.mountWindow({ PIXI, app: pixiApp, layers });
+    } catch {}
     try {
       const sofa = await import('./sofa.js');
       await sofa.mountSofa({
