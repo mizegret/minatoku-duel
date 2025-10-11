@@ -90,14 +90,30 @@ async function ensurePixi() {
     pixiRoot.appendChild(pixiApp.view);
 
   // Minimal stage setup（空のコンテナのみ）
-    layers = { root: new PIXI.Container(), table: new PIXI.Container() };
+    layers = { root: new PIXI.Container(), bg: new PIXI.Container(), table: new PIXI.Container() };
     pixiApp.stage.addChild(layers.root);
+    // z-order: bg (sofa etc) behind table
+    layers.root.addChild(layers.bg);
     layers.root.addChild(layers.table);
 
-    // Mount full table (side view drawn with PIXI Graphics)
+    // Mount background sofa first, then the table
     try {
-      const mod = await import('./table.js');
-      await mod.mountFullTable({ PIXI, app: pixiApp, layers });
+      const sofa = await import('./sofa.js');
+      await sofa.mountSofa({
+        PIXI,
+        app: pixiApp,
+        layers,
+        spec: {
+          // Slightly lower seam line and compress vertical height
+          baselineYRate: 0.66,
+          baselineOffset: 8, // px: ほんの少しだけ下げる
+          heightScale: 0.82,
+        },
+      });
+    } catch {}
+    try {
+      const table = await import('./table.js');
+      await table.mountFullTable({ PIXI, app: pixiApp, layers });
     } catch {}
 
     // Force initial anchor sizing right after creation
