@@ -8,6 +8,7 @@ let pixiLoadPromise = null; // single-flight loader for UMD script
 let pixiInitPromise = null; // single-flight initializer for Application
 let PIXI_NS = null; // holds ESM or UMD namespace
 let layoutPrepared = false;
+// Table is managed by table.js
 
 async function loadPixi() {
   if (PIXI_NS) return PIXI_NS;
@@ -89,8 +90,15 @@ async function ensurePixi() {
     pixiRoot.appendChild(pixiApp.view);
 
   // Minimal stage setup（空のコンテナのみ）
-    layers = { root: new PIXI.Container() };
+    layers = { root: new PIXI.Container(), table: new PIXI.Container() };
     pixiApp.stage.addChild(layers.root);
+    layers.root.addChild(layers.table);
+
+    // Mount full table (side view drawn with PIXI Graphics)
+    try {
+      const mod = await import('./table.js');
+      await mod.mountFullTable({ PIXI, app: pixiApp, layers });
+    } catch {}
 
     // Force initial anchor sizing right after creation
     try { anchorUpdater && anchorUpdater(); } catch {}
@@ -199,3 +207,5 @@ function renderHandDOM(cards) {
   });
   target.appendChild(frag);
 }
+
+// Table drawing moved to table.js
