@@ -48,6 +48,16 @@ export async function mountWindow({ PIXI, app, layers, spec = {} }) {
       // デッキの明かり（控えめなチラつき）
       lights: { enabled: true, base: 0.10, amp: 0.10, speedHz: 0.8 },
     },
+    // 月（右上のアクセント）
+    moon: {
+      enabled: true,
+      xRate: 0.90,     // ガラス幅に対するX位置（0=左, 1=右）
+      yRate: 0.14,     // ガラス高さに対するY位置（0=上, 1=下）
+      radiusRate: 0.06,// ガラス高さに対する半径比
+      color: 0xfff3c4, // 本体色
+      haloAlpha: 0.14, // 外周ハロー
+      craterAlpha: 0.12,
+    },
   };
   const cfg = merge(defaults, spec);
 
@@ -113,6 +123,12 @@ function positionWindow({ PIXI, app, node, cfg }) {
   const topMargin = Math.max(10, Math.round(glassH * 0.04));
   // ガラスの下端から少し上に“地平線”を設定（ここにビルの底辺を揃える）
   const groundY = glassH / 2 - Math.max(8, Math.round(glassH * cfg.groundOffsetRate));
+
+  // 月（ビルより背面に置く）
+  let moon = null;
+  if (cfg.moon?.enabled) {
+    moon = drawMoon({ PIXI, glassW, glassH, cfg: cfg.moon, topMargin });
+  }
 
   const far = new PIXI.Graphics();
   far.beginFill(cfg.far, 1);
@@ -182,8 +198,8 @@ function positionWindow({ PIXI, app, node, cfg }) {
   bars.endFill();
 
   // city に要素を追加（マスク内に収める）
-  if (tower) city.addChild(far, near, tower, mask);
-  else city.addChild(far, near, mask);
+  if (tower) city.addChild(moon || new PIXI.Container(), far, near, tower, mask);
+  else city.addChild(moon || new PIXI.Container(), far, near, mask);
 
   // 追加順序: ガラス → ハイライト → 都市ビュー（マスク済み） → 枠 → 桟
   node.addChild(glass, highlight, city, frame, bars);
@@ -215,5 +231,51 @@ function hex(n) {
 }
 
 function merge(a, b) { const o = { ...a }; for (const k in b) { const v = b[k]; o[k] = v && typeof v === 'object' && !Array.isArray(v) ? merge(a[k] || {}, v) : v; } return o; }
+
+// 月を作成（ハロー＋本体＋クレーター風の微妙な陰影）
+function drawMoon({ PIXI, glassW, glassH, cfg, topMargin }) {
+  const g = new PIXI.Container();
+  const r = Math.max(6, Math.floor(glassH * (cfg.radiusRate ?? 0.06)));
+  const x = -glassW / 2 + Math.floor(glassW * (cfg.xRate ?? 0.9));
+  const y = -glassH / 2 + Math.max(topMargin + r + 6, Math.floor(glassH * (cfg.yRate ?? 0.14)));
+
+  // ハロー（外周の柔らかい光）
+  const halo = makeRadialSprite({ PIXI, radius: Math.floor(r * 2.2), color: cfg.color, alpha: cfg.haloAlpha ?? 0.14 });
+  halo.position.set(x, y);
+
+  // 本体
+  const body = new PIXI.Graphics();
+  body.beginFill(cfg.color, 1).drawCircle(x, y, r).endFill();
+
+  // クレーター（控えめ）
+  const cr = new PIXI.Graphics();
+  cr.beginFill(0x000000, cfg.craterAlpha ?? 0.12);
+  const seeds = [[-0.25, -0.1, 0.22], [0.18, -0.12, 0.16], [-0.06, 0.18, 0.12], [0.22, 0.08, 0.10]];
+  for (const [dx, dy, rr] of seeds) {
+    cr.drawCircle(x + Math.floor(r * dx), y + Math.floor(r * dy), Math.floor(r * rr));
+  }
+  cr.endFill();
+
+  g.addChild(halo, body, cr);
+  return g;
+}
+
+function makeRadialSprite({ PIXI, radius, color, alpha = 0.15 }) {
+  const size = radius * 2;
+  const canvas = document.createElement('canvas');
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const grd = ctx.createRadialGradient(radius, radius, radius * 0.2, radius, radius, radius);
+  const hexColor = hex(color);
+  ctx.globalAlpha = alpha;
+  grd.addColorStop(0, hexColor);
+  grd.addColorStop(1, '#00000000');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, size, size);
+  const tex = PIXI.Texture.from(canvas);
+  const sp = new PIXI.Sprite(tex);
+  sp.anchor.set(0.5);
+  return sp;
+}
 
 // 東京タワー（簡易シルエット）を作成して返す
