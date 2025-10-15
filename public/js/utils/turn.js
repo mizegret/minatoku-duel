@@ -35,3 +35,10 @@ export function formatLastAction(la, actorLabel) {
   // 末尾のスペースは従来の文面と合わせて保持
   return `${actorLabel}：${label} → ${la.cardName ?? ''} ${tail}`;
 }
+
+export function formatDeltaParts({ charm, oji } = {}) {
+  const parts = [];
+  if (Number.isFinite(charm) && charm) parts.push(`魅力+${charm}`);
+  if (Number.isFinite(oji) && oji) parts.push(`好感度+${oji}`);
+  return parts;
+}

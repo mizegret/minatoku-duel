@@ -3,7 +3,7 @@
 
 import { TOTAL_TURNS } from '../constants.js';
 import { state, setState } from '../state.js';
-import { computeDisplayRound, formatLastAction } from '../utils/turn.js';
+import { computeDisplayRound, formatLastAction, formatDeltaParts } from '../utils/turn.js';
 import { getEndgameTexts } from '../utils/outcome.js';
 import { lockActions, unlockActions, logAction, shouldLog } from '../ui/actions.js';
 
@@ -76,9 +76,7 @@ export function applyStateSnapshot(snapshot, { UI, getClientId, setNotice }) {
       if (ts && (Number.isFinite(ts.charm) || Number.isFinite(ts.oji))) {
         const startKey = `start:${round}:${turnOwner || ''}:${ts.charm||0}:${ts.oji||0}`;
         if (shouldLog('turnStart', startKey)) {
-          const parts = [];
-          if (Number.isFinite(ts.charm) && ts.charm) parts.push(`魅力+${ts.charm}`);
-          if (Number.isFinite(ts.oji) && ts.oji) parts.push(`好感度+${ts.oji}`);
+          const parts = formatDeltaParts({ charm: ts.charm, oji: ts.oji });
           if (parts.length) logAction('event', `あなた：スキル発動（開始時） ${parts.join(' / ')}`);
         }
       }
@@ -92,9 +90,7 @@ export function applyStateSnapshot(snapshot, { UI, getClientId, setNotice }) {
         if (ts && (Number.isFinite(ts.charm) || Number.isFinite(ts.oji))) {
           const startKey = `start:${round}:${turnOwner || ''}:${ts.charm||0}:${ts.oji||0}`;
           if (shouldLog('turnStart', startKey)) {
-            const parts = [];
-            if (Number.isFinite(ts.charm) && ts.charm) parts.push(`魅力+${ts.charm}`);
-            if (Number.isFinite(ts.oji) && ts.oji) parts.push(`好感度+${ts.oji}`);
+            const parts = formatDeltaParts({ charm: ts.charm, oji: ts.oji });
             if (parts.length) logAction('event', `相手：スキル発動（開始時） ${parts.join(' / ')}`);
           }
         }
@@ -117,9 +113,7 @@ export function applyStateSnapshot(snapshot, { UI, getClientId, setNotice }) {
       const mine = !!(te.actorId && te.actorId === myId);
       const eKey = `end:${round}:${te.actorId || ''}:${te.charm||0}:${te.oji||0}`;
       if (shouldLog('turnEnd', eKey)) {
-        const parts = [];
-        if (Number.isFinite(te.charm) && te.charm) parts.push(`魅力+${te.charm}`);
-        if (Number.isFinite(te.oji) && te.oji) parts.push(`好感度+${te.oji}`);
+        const parts = formatDeltaParts({ charm: te.charm, oji: te.oji });
         if (parts.length) logAction('event', `${mine ? 'あなた' : '相手'}：スキル発動（終了時） ${parts.join(' / ')}`);
       }
     }
@@ -128,4 +122,3 @@ export function applyStateSnapshot(snapshot, { UI, getClientId, setNotice }) {
     logAction('state', 'スナップショット適用に失敗しました');
   }
 }
-

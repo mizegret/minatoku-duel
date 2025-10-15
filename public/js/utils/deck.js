@@ -4,18 +4,17 @@ import { DECK_COMPOSITION } from '../constants.js';
 
 export function buildDeck(cardsByType, hostGame) {
   const deck = [];
-  const { humans, decorations, actions } = DECK_COMPOSITION;
-  for (let i = 0; i < humans; i += 1) {
-    const c = nextCard(cardsByType, 'humans', hostGame);
-    deck.push({ ...c, type: 'human' });
-  }
-  for (let i = 0; i < decorations; i += 1) {
-    const c = nextCard(cardsByType, 'decorations', hostGame);
-    deck.push({ ...c, type: 'decoration' });
-  }
-  for (let i = 0; i < actions; i += 1) {
-    const c = nextCard(cardsByType, 'actions', hostGame);
-    deck.push({ ...c, type: 'action' });
+  const SPEC = [
+    ['humans', 'human'],
+    ['decorations', 'decoration'],
+    ['actions', 'action'],
+  ];
+  for (const [poolKey, type] of SPEC) {
+    const count = Number(DECK_COMPOSITION?.[poolKey]) || 0;
+    for (let i = 0; i < count; i += 1) {
+      const c = nextCard(cardsByType, poolKey, hostGame);
+      deck.push({ ...c, type });
+    }
   }
   return shuffle(deck);
 }

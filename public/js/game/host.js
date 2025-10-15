@@ -2,6 +2,7 @@ import { TOTAL_TURNS, MAX_DECORATIONS_PER_HUMAN, HAND_SIZE, ACTIONS, SCORE_RULES
 import { buildPlayers } from '../utils/players.js';
 import { buildDeck, drawCard, popFirstByIdOrType } from '../utils/deck.js';
 import { buildCardIndex, scoreField } from '../utils/score.js';
+import { applyAddSelfEffects } from '../utils/skills.js';
 
 // Step3: Host-side game authority logic
 // - ensureStarted: initialize decks/hands/fields/scores and broadcast start+state
@@ -104,25 +105,9 @@ export function handleMoveMessage(message, ctx) {
         // Skills (minimal): apply self add effects with trigger 'onSummon'
         try {
           const ensureDelta = (id) => (game._actionDeltasById[id] ||= { charm: 0, oji: 0 });
-          let sCharm = 0; let sOji = 0;
-          const skills = Array.isArray(humanCard.skills) ? humanCard.skills : [];
-          for (const sk of skills) {
-            const triggers = Array.isArray(sk?.triggers) ? sk.triggers : [];
-            if (!triggers.includes('onSummon')) continue;
-            const effects = Array.isArray(sk?.effects) ? sk.effects : [];
-            for (const e of effects) {
-              if (!e || e.op !== 'add') continue;
-              const delta = Number(e.value) || 0;
-              if (!delta) continue;
-              const targetSelf = !e.target || e.target === 'self';
-              if (!targetSelf) continue; // minimal: self only
-              const d = ensureDelta(actorId);
-              if (e.stat === 'charm') { d.charm = Math.max(0, d.charm + delta); sCharm += delta; }
-              if (e.stat === 'oji') { d.oji = Math.max(0, d.oji + delta); sOji += delta; }
-            }
-          }
-          if (sCharm) lastAction.charm = (lastAction.charm || 0) + sCharm;
-          if (sOji) lastAction.oji = (lastAction.oji || 0) + sOji;
+          const { sumCharm, sumOji } = applyAddSelfEffects(humanCard?.skills, 'onSummon', ensureDelta, actorId);
+          if (sumCharm) lastAction.charm = (lastAction.charm || 0) + sumCharm;
+          if (sumOji) lastAction.oji = (lastAction.oji || 0) + sumOji;
         } catch {}
         // scoring is handled by aggregator (field + rules + skill deltas); no mid-tick mutation
       } else {
@@ -155,27 +140,11 @@ export function handleMoveMessage(message, ctx) {
           // Skills (minimal): apply target human's onDecorate self-add effects
           try {
             const ensureDelta = (id) => (game._actionDeltasById[id] ||= { charm: 0, oji: 0 });
-            let sCharm = 0; let sOji = 0;
             const byId = game._cardsById || buildCardIndex(state.cardsByType);
             const humanDef = target?.id ? byId.get(target.id) : null;
-            const skills = Array.isArray(humanDef?.skills) ? humanDef.skills : [];
-            for (const sk of skills) {
-              const triggers = Array.isArray(sk?.triggers) ? sk.triggers : [];
-              if (!triggers.includes('onDecorate')) continue;
-              const effects = Array.isArray(sk?.effects) ? sk.effects : [];
-              for (const e of effects) {
-                if (!e || e.op !== 'add') continue;
-                const delta = Number(e.value) || 0;
-                if (!delta) continue;
-                const targetSelf = !e.target || e.target === 'self';
-                if (!targetSelf) continue; // minimal
-                const d = ensureDelta(actorId);
-                if (e.stat === 'charm') { d.charm = Math.max(0, d.charm + delta); sCharm += delta; }
-                if (e.stat === 'oji') { d.oji = Math.max(0, d.oji + delta); sOji += delta; }
-              }
-            }
-            if (sCharm) lastAction.charm = (lastAction.charm || 0) + sCharm;
-            if (sOji) lastAction.oji = (lastAction.oji || 0) + sOji;
+            const { sumCharm, sumOji } = applyAddSelfEffects(humanDef?.skills, 'onDecorate', ensureDelta, actorId);
+            if (sumCharm) lastAction.charm = (lastAction.charm || 0) + sumCharm;
+            if (sumOji) lastAction.oji = (lastAction.oji || 0) + sumOji;
           } catch {}
           logAction?.('event', `decorate: ${deco.name}`);
         } else {
@@ -247,22 +216,8 @@ export function handleMoveMessage(message, ctx) {
     let eCharm = 0; let eOji = 0;
     for (const h of Array.isArray(fieldAct.humans) ? fieldAct.humans : []) {
       const humanDef = h?.id ? byId.get(h.id) : null;
-      const skills = Array.isArray(humanDef?.skills) ? humanDef.skills : [];
-      for (const sk of skills) {
-        const triggers = Array.isArray(sk?.triggers) ? sk.triggers : [];
-        if (!triggers.includes('onTurnEnd')) continue;
-        const effects = Array.isArray(sk?.effects) ? sk.effects : [];
-        for (const e of effects) {
-          if (!e || e.op !== 'add') continue;
-          const delta = Number(e.value) || 0;
-          if (!delta) continue;
-          const targetSelf = !e.target || e.target === 'self';
-          if (!targetSelf) continue;
-          const d = ensureDelta(actorId);
-          if (e.stat === 'charm') { d.charm = Math.max(0, d.charm + delta); eCharm += delta; }
-          if (e.stat === 'oji') { d.oji = Math.max(0, d.oji + delta); eOji += delta; }
-        }
-      }
+      const { sumCharm, sumOji } = applyAddSelfEffects(humanDef?.skills, 'onTurnEnd', ensureDelta, actorId);
+      eCharm += sumCharm; eOji += sumOji;
     }
     if (eCharm || eOji) turnEndInfo = { actorId, charm: eCharm || 0, oji: eOji || 0 };
   } catch {}
@@ -299,22 +254,8 @@ export function handleMoveMessage(message, ctx) {
       let tCharm = 0; let tOji = 0;
       for (const h of Array.isArray(fieldP.humans) ? fieldP.humans : []) {
         const humanDef = h?.id ? byId.get(h.id) : null;
-        const skills = Array.isArray(humanDef?.skills) ? humanDef.skills : [];
-        for (const sk of skills) {
-          const triggers = Array.isArray(sk?.triggers) ? sk.triggers : [];
-          if (!triggers.includes('onTurnStart')) continue;
-          const effects = Array.isArray(sk?.effects) ? sk.effects : [];
-          for (const e of effects) {
-            if (!e || e.op !== 'add') continue;
-            const delta = Number(e.value) || 0;
-            if (!delta) continue;
-            const targetSelf = !e.target || e.target === 'self';
-            if (!targetSelf) continue;
-            const d = ensureDelta(pid);
-            if (e.stat === 'charm') { d.charm = Math.max(0, d.charm + delta); tCharm += delta; }
-            if (e.stat === 'oji') { d.oji = Math.max(0, d.oji + delta); tOji += delta; }
-          }
-        }
+        const { sumCharm, sumOji } = applyAddSelfEffects(humanDef?.skills, 'onTurnStart', ensureDelta, pid);
+        tCharm += sumCharm; tOji += sumOji;
       }
       if (tCharm || tOji) {
         turnStartInfo = { actorId: pid, charm: tCharm || 0, oji: tOji || 0 };
