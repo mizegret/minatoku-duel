@@ -1,4 +1,6 @@
 import { TOTAL_TURNS, ABLY_CHANNEL_PREFIX, ACTIONS } from './js/constants.js';
+import { fetchJson } from './js/utils/http.js';
+import { initRouter, navigateToRoom } from './js/router.js';
 // host/game logic
 import { ensureStarted as hostEnsureStarted, handleMoveMessage as hostHandleMoveMessage } from './js/game/host.js';
 // UI renderer is selected at runtime to keep default DOM UI intact.
@@ -168,17 +170,7 @@ async function loadCards() {
   }
 }
 
-async function fetchJson(url) {
-  const res = await fetch(url, { cache: 'no-store' });
-  if (!res.ok) {
-    throw new Error(`request failed: ${res.status} ${res.statusText}`);
-  }
-  const contentType = res.headers.get('content-type') ?? '';
-  if (!contentType.includes('application/json')) {
-    throw new Error(`unexpected content-type: ${contentType}`);
-  }
-  return res.json();
-}
+// fetchJson moved to js/utils/http.js
 
 // hasRealtimeSupport is provided by Net
 
@@ -569,25 +561,7 @@ function unlockActions() {
 
 // copyRoomLink moved to ui/inputs.js
 
-function handleInitialRoute(stateOverride) {
-  const roomIdFromState = stateOverride?.roomId;
-  if (roomIdFromState && ROOM_ID_PATTERN.test(roomIdFromState)) {
-    showRoom(roomIdFromState);
-    return;
-  }
-
-  const roomMatch = location.pathname.match(/^\/room\/([a-z0-9-]{1,32})\/?$/);
-  if (!roomMatch) {
-    showLobby();
-    return;
-  }
-  const requestedId = roomMatch[1];
-  if (!ROOM_ID_PATTERN.test(requestedId)) {
-    showLobby('無効な Room ID です。もう一度作成し直してください。');
-    return;
-  }
-  showRoom(requestedId);
-}
+// routing moved to js/router.js
 
 function ensureSingleAction(callback) {
   return () => {
@@ -625,10 +599,7 @@ function getMembers() {
 
 // utils moved to js/utils/*
 
-function navigateToRoom(roomId) {
-  history.pushState({ roomId }, '', `/room/${roomId}`);
-  showRoom(roomId);
-}
+// navigateToRoom moved to js/router.js
 
 // navigateToLobby was unused; removed
 
@@ -658,10 +629,10 @@ async function init() {
   subscribe('scores', (v) => UI.updateScores(v ?? state.scores));
   subscribe('log', (v) => UI.renderLog(Array.isArray(v) ? v : state.log));
 
-  handleInitialRoute(history.state);
-
-  window.addEventListener('popstate', (event) => {
-    handleInitialRoute(event.state);
+  initRouter({
+    onLobby: () => showLobby(),
+    onRoom: (id) => showRoom(id),
+    onInvalid: (msg) => showLobby(msg),
   });
 
   bindInputs({
