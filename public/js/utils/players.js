@@ -8,3 +8,13 @@ export function buildPlayers(game, members) {
   }));
 }
 
+// Return current members with host first (if present)
+export function getMembers(state, getClientId) {
+  if (!Array.isArray(state?.members)) return [];
+  const host = state.hostId || (typeof getClientId === 'function' ? getClientId() : null);
+  const uniq = state.members.filter((id, i, arr) => id && arr.indexOf(id) === i);
+  if (host && uniq.includes(host)) {
+    return [host, ...uniq.filter((id) => id !== host)];
+  }
+  return uniq;
+}

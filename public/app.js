@@ -2,59 +2,23 @@ import { TOTAL_TURNS, ABLY_CHANNEL_PREFIX } from './js/constants.js';
 import { initRouter, navigateToRoom } from './js/router.js';
 import { loadEnvironment } from './js/data/env.js';
 import { loadCards } from './js/data/cards.js';
-import { computeDisplayRound, formatLastAction } from './js/utils/turn.js';
+import { applyStateSnapshot } from './js/game/state-sync.js';
+import { ensureSingleAction, logAction } from './js/ui/actions.js';
 // host/game logic
 import { ensureStarted as hostEnsureStarted, handleMoveMessage as hostHandleMoveMessage } from './js/game/host.js';
 // UI renderer is selected at runtime to keep default DOM UI intact.
 // When `?renderer=pixi` is present, we load Pixi adapter; otherwise DOM renderer.
 let UI = null;
 import { bindInputs } from './js/ui/inputs.js';
+import { setNotice } from './js/ui/notice.js';
+import { generateRoomId } from './js/utils/id.js';
+import { prepareRoom } from './js/game/setup.js';
 import * as Net from './js/net/ably.js';
 import { state, setState, addMember, subscribe } from './js/state.js';
 
 const lobbySection = document.getElementById('screen-lobby');
 const roomSection = document.getElementById('screen-room');
 const roomIdLabel = document.getElementById('room-id');
-const noticeArea = document.getElementById('notice'); // global notice (lobby + in-room)
-
-// env detection moved to js/data/env.js
-
-// Networking is handled inside Net (see js/net/ably.js)
-
-// Logging: show only authoritative, user-meaningful entries
-const LOG_FILTER = { network: false, state: false, event: true, move: true };
-const LOG_KEYS = { action: null, turnStart: null, turnMsg: null, turnEnd: null };
-function shouldLog(keyName, key) {
-  if (!key) return true;
-  if (LOG_KEYS[keyName] === key) return false;
-  LOG_KEYS[keyName] = key;
-  return true;
-}
-
-function generateRoomId() {
-  const raw = crypto.randomUUID().replace(/-/g, '').slice(0, 8);
-  return raw.toLowerCase();
-}
-
-function setNotice(message) {
-  if (!noticeArea) return;
-  if (!message) {
-    noticeArea.textContent = '';
-    noticeArea.setAttribute('hidden', '');
-    return;
-  }
-  noticeArea.textContent = message;
-  noticeArea.removeAttribute('hidden');
-}
-
-
-// loadEnvironment moved to js/data/env.js
-
-// loadCards moved to js/data/cards.js
-
-// fetchJson moved to js/utils/http.js
-
-// hasRealtimeSupport is provided by Net
 
 function showLobby(withNotice) {
   lobbySection?.removeAttribute('hidden');
@@ -75,38 +39,11 @@ function showRoom(roomId) {
   setNotice('');
   prepareRoom();
   setNotice('他のプレイヤーを待機中…');
-  // 開始前はアクションをロック
-  lockActions();
   connectRealtime(roomId);
   lobbySection?.setAttribute('hidden', '');
   roomSection?.removeAttribute('hidden');
   UI.updateStartUI(state.isHost);
 }
-
-function resetScores() { setState({ scores: { charm: 0, oji: 0, total: 0 } }); }
-
-function resetPlayers() { setState({ self: { hand: [], field: { humans: [] } }, opponent: { hand: [], field: { humans: [] } } }); }
-
-function resetTurn() { setState({ turn: 1 }); }
-
-function resetLog() { setState({ log: [] }); }
-
-// moved to UI: updateScores/updateTurnIndicator/updateDeckCounts
-
-function pushLog(entry) {
-  const next = [entry, ...state.log];
-  setState({ log: next });
-}
-
-// computeDisplayRound/formatLastAction moved to js/utils/turn.js
-
-// moved to UI: renderLog
-
-// connection watcher lives in Net.init/connect
-
-// channel-level verbose watchersは削除（最小ログ運用）
-
-// channel subscriptions are wired in Net.connect
 
 function handleJoinMessage(message) {
   const data = message?.data ?? {};
@@ -148,153 +85,10 @@ function handleMoveMessage(message) {
 
 function handleStateMessage(message) {
   const snapshot = message?.data ?? {};
-  applyStateSnapshot(snapshot);
+  applyStateSnapshot(snapshot, { UI, getClientId, setNotice });
 }
 
-function applyStateSnapshot(snapshot) {
-  // スナップショット（ホスト権威）を UI/状態へ反映
-  try {
-    const phase = snapshot?.phase ?? 'in-round';
-    const round = Number.isFinite(snapshot?.round) ? snapshot.round : state.turn;
-    const turnOwner = snapshot?.turnOwner ?? null;
-    const players = Array.isArray(snapshot?.players) ? snapshot.players : [];
-
-    // 自身/相手のプレイヤーを決定
-    const myId = getClientId();
-    const me = players.find((p) => p?.clientId === myId) ?? players[0] ?? null;
-    const opp = players.find((p) => p?.clientId && p.clientId !== myId) ?? players[1] ?? null;
-
-  // ターン・フェーズ反映（表示仕様）
-  // - ended 時は両者とも round を表示
-  // - それ以外: roundHalf=0（前半）は 自分のターン=round / 相手=round-1。roundHalf=1（後半）は両者=round
-  const myTurn = !!(turnOwner && myId && turnOwner === myId);
-  const roundHalf = Number.isFinite(snapshot?.roundHalf) ? snapshot.roundHalf : 0;
-  const displayRound = computeDisplayRound({ phase, round, myTurn, roundHalf });
-  setState({ turn: displayRound });
-  UI.updateTurnIndicator(state.turn, TOTAL_TURNS);
-  setState({ isMyTurn: !!myTurn });
-
-    // 山札枚数（あれば表示）
-    const selfDeck = Number.isFinite(me?.deckCount) ? me.deckCount : 0;
-    const oppDeck = Number.isFinite(opp?.deckCount) ? opp.deckCount : 0;
-    UI.updateDeckCounts(selfDeck, oppDeck);
-
-    // スコアは自分のものを優先して表示（なければ 0 ）
-    const myScores = me?.scores ?? { charm: 0, oji: 0, total: undefined };
-    setState({
-      scores: {
-        charm: Number.isFinite(myScores.charm) ? myScores.charm : 0,
-        oji: Number.isFinite(myScores.oji) ? myScores.oji : 0,
-        total: Number.isFinite(myScores.total) ? myScores.total : undefined,
-      },
-    });
-    UI.updateScores(state.scores);
-
-    // 盤面・手札
-    if (me) {
-      setState({ self: {
-        hand: Array.isArray(me.hand) ? me.hand : [],
-        field: me.field && Array.isArray(me.field?.humans)
-          ? { humans: me.field.humans }
-          : { humans: [] },
-      }});
-    }
-    if (opp) {
-      setState({ opponent: {
-        hand: Array.isArray(opp.hand) ? opp.hand : [],
-        field: opp.field && Array.isArray(opp.field?.humans)
-          ? { humans: opp.field.humans }
-          : { humans: [] },
-      }});
-    }
-    UI.renderGame(state);
-
-    // 通知とアクション制御（バナーは常に現在のターン状態を表示）
-    if (phase === 'ended' || phase === 'game-over' || round > TOTAL_TURNS) {
-      lockActions();
-      // Endgame summary (winner/draw)
-      const result = snapshot?.result;
-      if (result && typeof result === 'object') {
-        const pMy = me?.scores?.total ?? 0;
-        const pOpp = opp?.scores?.total ?? 0;
-        if (result.type === 'draw') {
-          setNotice(`ゲーム終了：引き分け（${pMy} - ${pOpp}）`);
-          logAction('state', `結果：引き分け（${pMy} - ${pOpp}）`);
-        } else if (result.type === 'win') {
-          const mine = !!(result.winnerId && me?.clientId && result.winnerId === me.clientId);
-          setNotice(`ゲーム終了：${mine ? 'あなたの勝ち' : 'あなたの負け'}（${pMy} - ${pOpp}）`);
-          logAction('state', `結果：${mine ? '勝ち' : '負け'}（${pMy} - ${pOpp}）`);
-        } else {
-          setNotice('ゲーム終了');
-        }
-      } else {
-        setNotice('ゲーム終了');
-      }
-    } else if (myTurn) {
-      unlockActions();
-      setNotice(`あなたのターン!!`);
-      const turnKey = `turn:${round}:${turnOwner || ''}`;
-      if (shouldLog('turnMsg', turnKey)) logAction('event', `あなたのターン（ラウンド ${displayRound}）`);
-      // skills: show start-of-turn deltas right after the turn message
-      const ts = snapshot?.turnStart;
-      if (ts && (Number.isFinite(ts.charm) || Number.isFinite(ts.oji))) {
-        const startKey = `start:${round}:${turnOwner || ''}:${ts.charm||0}:${ts.oji||0}`;
-        if (shouldLog('turnStart', startKey)) {
-          const parts = [];
-          if (Number.isFinite(ts.charm) && ts.charm) parts.push(`魅力+${ts.charm}`);
-          if (Number.isFinite(ts.oji) && ts.oji) parts.push(`好感度+${ts.oji}`);
-          if (parts.length) logAction('event', `あなた：スキル発動（開始時） ${parts.join(' / ')}`);
-        }
-      }
-    } else {
-      lockActions();
-      if (turnOwner) {
-        setNotice('相手のターンです…');
-        const oppTurnKey = `turn:${round}:${turnOwner || ''}`;
-        if (shouldLog('turnMsg', oppTurnKey)) logAction('event', '相手のターンです…');
-        // optionally log opponent start-of-turn skills as well
-        const ts = snapshot?.turnStart;
-        if (ts && (Number.isFinite(ts.charm) || Number.isFinite(ts.oji))) {
-          const startKey = `start:${round}:${turnOwner || ''}:${ts.charm||0}:${ts.oji||0}`;
-          if (shouldLog('turnStart', startKey)) {
-            const parts = [];
-            if (Number.isFinite(ts.charm) && ts.charm) parts.push(`魅力+${ts.charm}`);
-            if (Number.isFinite(ts.oji) && ts.oji) parts.push(`好感度+${ts.oji}`);
-            if (parts.length) logAction('event', `相手：スキル発動（開始時） ${parts.join(' / ')}`);
-          }
-        }
-      }
-    }
-
-    // 行動ログ（権威のみ、重複防止）
-    const la = snapshot?.lastAction;
-    if (la && la.type) {
-      const actorIsMe = !!(la.actorId && la.actorId === myId);
-      const actorLabel = actorIsMe ? 'あなた' : '相手';
-      const msg = formatLastAction(la, actorLabel);
-      const aKey = `act:${round}:${Number.isFinite(snapshot?.roundHalf)?snapshot.roundHalf:0}:${la.type}:${la.actorId || ''}:${la.cardName || ''}:${la.charm||0}:${la.oji||0}`;
-      if (msg && shouldLog('action', aKey)) logAction('move', msg);
-    }
-
-    // ターン終了時スキル（直近行動の後ろに出す、重複防止）
-    const te = snapshot?.turnEnd;
-    if (te && (Number.isFinite(te.charm) || Number.isFinite(te.oji))) {
-      const mine = !!(te.actorId && te.actorId === myId);
-      const eKey = `end:${round}:${te.actorId || ''}:${te.charm||0}:${te.oji||0}`;
-      if (shouldLog('turnEnd', eKey)) {
-        const parts = [];
-        if (Number.isFinite(te.charm) && te.charm) parts.push(`魅力+${te.charm}`);
-        if (Number.isFinite(te.oji) && te.oji) parts.push(`好感度+${te.oji}`);
-        if (parts.length) logAction('event', `${mine ? 'あなた' : '相手'}：スキル発動（終了時） ${parts.join(' / ')}`);
-      }
-    }
-
-    // omit verbose state log
-  } catch (e) {
-    console.warn('[state] failed to apply snapshot', e);
-    logAction('state', 'スナップショット適用に失敗しました');
-  }
-}
+// applyStateSnapshot moved to js/game/state-sync.js
 
 let netHandle = null;
 
@@ -373,82 +167,14 @@ async function publishState(snapshot = {}) {
   await netHandle.publishState(enriched);
 }
 
-// detachRealtime was unused; removed
-
-// dev-only advanceTurn removed
-
-// adjustScores は move のホスト処理に置き換わったため削除
-
-// moved to UI: render helpers
-
-function prepareRoom() {
-  resetScores();
-  resetPlayers();
-  resetTurn();
-  resetLog();
-  setState({ started: false, hostId: null });
-  UI.renderGame(state);
-  // 開始前はロックしておき、state受信で解放
-  lockActions();
-  UI.updateScores(state.scores);
-  UI.updateStartUI(state.isHost);
-}
-
-function lockActions() {
-  setState({ actionLocked: true });
-  UI.setActionButtonsDisabled(true);
-  UI.updateHandInteractivity(state.isMyTurn, state.actionLocked);
-}
-
-function unlockActions() {
-  setState({ actionLocked: false });
-  UI.setActionButtonsDisabled(false);
-  UI.updateHandInteractivity(state.isMyTurn, state.actionLocked);
-}
-
-// copyRoomLink moved to ui/inputs.js
-
-// routing moved to js/router.js
-
-function ensureSingleAction(callback) {
-  return () => {
-    if (state.actionLocked) {
-      console.log('1ターンにつき1アクションのみ（モック）');
-      return;
-    }
-    callback();
-    lockActions();
-  };
-}
-
-function logAction(type, message) {
-  if (LOG_FILTER[type] === false) return;
-  pushLog({ type, message, at: Date.now() });
-}
-
 function logButtonAction(_type, _message, callback) {
-  return ensureSingleAction(() => { callback(); });
+  return ensureSingleAction(UI, () => { callback(); });
 }
 
 // --- minimal member helpers ---
-// addMember moved to js/state.js
 
-function getMembers() {
-  if (!Array.isArray(state.members)) return [];
-  // 先頭に Host を寄せる（ある場合）
-  const host = state.hostId || getClientId();
-  const uniq = state.members.filter((id, i, arr) => id && arr.indexOf(id) === i);
-  if (host && uniq.includes(host)) {
-    return [host, ...uniq.filter((id) => id !== host)];
-  }
-  return uniq;
-}
-
-// utils moved to js/utils/*
-
-// navigateToRoom moved to js/router.js
-
-// navigateToLobby was unused; removed
+import { getMembers as getMembersFromState } from './js/utils/players.js';
+function getMembers() { return getMembersFromState(state, getClientId); }
 
 async function init() {
   // Select UI renderer (default: DOM)
@@ -517,5 +243,3 @@ function ensureStarted() {
 }
 
 init();
-// ---- Constants / Flags ----------------------------------------------------
-// constants moved to js/constants.js
