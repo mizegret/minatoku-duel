@@ -5,9 +5,11 @@ import { ACTIONS } from '../constants.js';
 import { state } from '../state.js';
 
 export function computeDisplayRound({ phase, round, myTurn, roundHalf }) {
-  const r = Number.isFinite(round) ? round : state.turn;
-  if (phase === 'ended') return r || 1;
-  return (myTurn || roundHalf === 1) ? (r || 1) : Math.max(1, (r || 1) - 1);
+  // Rule: 通常は現在ラウンドを表示。前半かつ自分のターンでない時だけ1つ前を表示。
+  const base = (Number.isFinite(round) ? round : state.turn) || 1;
+  if (phase === 'ended') return base;
+  const showCurrent = myTurn || roundHalf === 1;
+  return showCurrent ? base : Math.max(1, base - 1);
 }
 
 // Map action → fixed label (ログ文言は挙動不変)
