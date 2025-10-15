@@ -6,6 +6,7 @@ import { state, setState } from '../state.js';
 import { computeDisplayRound, formatLastAction, formatDeltaParts } from '../utils/turn.js';
 import { getEndgameTexts } from '../utils/outcome.js';
 import { lockActions, unlockActions, logAction, shouldLog } from '../ui/actions.js';
+import { buildTurnKey, buildStartKey, buildActionKey, buildEndKey } from '../utils/log.js';
 
 export function applyStateSnapshot(snapshot, { UI, getClientId, setNotice }) {
   try {
@@ -70,11 +71,11 @@ export function applyStateSnapshot(snapshot, { UI, getClientId, setNotice }) {
     } else if (myTurn) {
       unlockActions(UI);
       setNotice('あなたのターン!!');
-      const turnKey = `turn:${round}:${turnOwner || ''}`;
+      const turnKey = buildTurnKey(round, turnOwner || '');
       if (shouldLog('turnMsg', turnKey)) logAction('event', `あなたのターン（ラウンド ${displayRound}）`);
       const ts = snapshot?.turnStart;
       if (ts && (Number.isFinite(ts.charm) || Number.isFinite(ts.oji))) {
-        const startKey = `start:${round}:${turnOwner || ''}:${ts.charm||0}:${ts.oji||0}`;
+        const startKey = buildStartKey(round, turnOwner || '', { charm: ts.charm || 0, oji: ts.oji || 0 });
         if (shouldLog('turnStart', startKey)) {
           const parts = formatDeltaParts({ charm: ts.charm, oji: ts.oji });
           if (parts.length) logAction('event', `あなた：スキル発動（開始時） ${parts.join(' / ')}`);
@@ -84,11 +85,11 @@ export function applyStateSnapshot(snapshot, { UI, getClientId, setNotice }) {
       lockActions(UI);
       if (turnOwner) {
         setNotice('相手のターンです…');
-        const oppTurnKey = `turn:${round}:${turnOwner || ''}`;
+        const oppTurnKey = buildTurnKey(round, turnOwner || '');
         if (shouldLog('turnMsg', oppTurnKey)) logAction('event', '相手のターンです…');
         const ts = snapshot?.turnStart;
         if (ts && (Number.isFinite(ts.charm) || Number.isFinite(ts.oji))) {
-          const startKey = `start:${round}:${turnOwner || ''}:${ts.charm||0}:${ts.oji||0}`;
+          const startKey = buildStartKey(round, turnOwner || '', { charm: ts.charm || 0, oji: ts.oji || 0 });
           if (shouldLog('turnStart', startKey)) {
             const parts = formatDeltaParts({ charm: ts.charm, oji: ts.oji });
             if (parts.length) logAction('event', `相手：スキル発動（開始時） ${parts.join(' / ')}`);
@@ -103,7 +104,7 @@ export function applyStateSnapshot(snapshot, { UI, getClientId, setNotice }) {
       const actorIsMe = !!(la.actorId && la.actorId === myId);
       const actorLabel = actorIsMe ? 'あなた' : '相手';
       const msg = formatLastAction(la, actorLabel);
-      const aKey = `act:${round}:${Number.isFinite(snapshot?.roundHalf)?snapshot.roundHalf:0}:${la.type}:${la.actorId || ''}:${la.cardName || ''}:${la.charm||0}:${la.oji||0}`;
+      const aKey = buildActionKey(round, Number.isFinite(snapshot?.roundHalf) ? snapshot.roundHalf : 0, la);
       if (msg && shouldLog('action', aKey)) logAction('move', msg);
     }
 
@@ -111,7 +112,7 @@ export function applyStateSnapshot(snapshot, { UI, getClientId, setNotice }) {
     const te = snapshot?.turnEnd;
     if (te && (Number.isFinite(te.charm) || Number.isFinite(te.oji))) {
       const mine = !!(te.actorId && te.actorId === myId);
-      const eKey = `end:${round}:${te.actorId || ''}:${te.charm||0}:${te.oji||0}`;
+      const eKey = buildEndKey(round, te);
       if (shouldLog('turnEnd', eKey)) {
         const parts = formatDeltaParts({ charm: te.charm, oji: te.oji });
         if (parts.length) logAction('event', `${mine ? 'あなた' : '相手'}：スキル発動（終了時） ${parts.join(' / ')}`);

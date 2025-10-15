@@ -1,4 +1,5 @@
 // Pixi renderer (hybrid): center canvas only（何も描かない）
+import { buildLogHTML } from '../dom-utils.js';
 
 let pixiApp = null;
 let pixiRoot = null;
@@ -180,16 +181,7 @@ export function updateDeckCounts(selfCount = 0, oppCount = 0) {
 export function renderLog(log = []) {
   const el = document.getElementById('log-vertical') || document.getElementById('action-log');
   if (!el) return;
-  if (!Array.isArray(log) || log.length === 0) {
-    el.innerHTML = '<div class="log-entry">まだ行動がありません</div>';
-    return;
-  }
-  el.innerHTML = log
-    .map(({ type, message, at }) => {
-      const time = new Date(at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-      return `<div class="log-entry action-${type}"><span>${message}</span><time>${time}</time></div>`;
-    })
-    .join('');
+  el.innerHTML = buildLogHTML(log);
 }
 export function setActionButtonsDisabled(disabled) {
   const btn = document.getElementById('action-skip');

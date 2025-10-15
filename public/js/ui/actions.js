@@ -47,3 +47,6 @@ export function ensureSingleAction(UI, callback) {
   };
 }
 
+export function makeLogButtonAction(UI) {
+  return (_type, _message, callback) => ensureSingleAction(UI, () => { callback(); });
+}

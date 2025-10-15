@@ -1,4 +1,5 @@
 import { TOTAL_TURNS, MAX_DECORATIONS_PER_HUMAN } from '../constants.js';
+import { buildLogHTML } from './dom-utils.js';
 // Optional init hook for alternative renderers parity
 export function init(_ctx) { /* no-op for DOM renderer */ }
 
@@ -105,16 +106,7 @@ export function updateDeckCounts(selfCount = 0, oppCount = 0) {
 
 export function renderLog(log = []) {
   if (!refs.actionLog) return;
-  if (!Array.isArray(log) || log.length === 0) {
-    refs.actionLog.innerHTML = '<div class="log-entry">まだ行動がありません</div>';
-    return;
-  }
-  refs.actionLog.innerHTML = log
-    .map(({ type, message, at }) => {
-      const time = new Date(at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-      return `<div class="log-entry action-${type}"><span>${message}</span><time>${time}</time></div>`;
-    })
-    .join('');
+  refs.actionLog.innerHTML = buildLogHTML(log);
 }
 
 export function setActionButtonsDisabled(disabled) {

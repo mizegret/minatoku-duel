@@ -3,7 +3,7 @@ import { initRouter, navigateToRoom } from './js/router.js';
 import { loadEnvironment } from './js/data/env.js';
 import { loadCards } from './js/data/cards.js';
 import { applyStateSnapshot } from './js/game/state-sync.js';
-import { ensureSingleAction, logAction } from './js/ui/actions.js';
+import { ensureSingleAction, logAction, makeLogButtonAction } from './js/ui/actions.js';
 // host/game logic
 import { ensureStarted as hostEnsureStarted, handleMoveMessage as hostHandleMoveMessage } from './js/game/host.js';
 // UI renderer is selected at runtime to keep default DOM UI intact.
@@ -13,32 +13,13 @@ import { bindInputs } from './js/ui/inputs.js';
 import { setNotice } from './js/ui/notice.js';
 import { generateRoomId } from './js/utils/id.js';
 import { prepareRoom } from './js/game/setup.js';
+import { showLobby as navShowLobby, showRoom as navShowRoom } from './js/ui/navigation.js';
 import { connect as connectRealtime, publishJoin as publishJoinNet, publishStart as publishStartNet, publishMove as publishMoveNet, publishState as publishStateNet, getClientId, isConnected } from './js/net/session.js';
 import { state, setState, addMember, subscribe } from './js/state.js';
 
-const lobbySection = document.getElementById('screen-lobby');
-const roomSection = document.getElementById('screen-room');
-const roomIdLabel = document.getElementById('room-id');
+// Navigation DOM is handled in js/ui/navigation.js
 
-function showLobby(withNotice) {
-  lobbySection?.removeAttribute('hidden');
-  roomSection?.setAttribute('hidden', '');
-  state.roomId = null;
-  if (withNotice) {
-    setNotice(withNotice);
-  } else {
-    setNotice('');
-  }
-}
-
-function showRoom(roomId) {
-  state.roomId = roomId;
-  if (roomIdLabel) {
-    roomIdLabel.textContent = roomId;
-  }
-  setNotice('');
-  prepareRoom(UI);
-  setNotice('他のプレイヤーを待機中…');
+function connectRoom(roomId) {
   if (!state.env?.ABLY_API_KEY) {
     logAction('network', 'Ablyキー未設定のため接続をスキップ');
     return;
@@ -65,9 +46,6 @@ function showRoom(roomId) {
       onState: handleStateMessage,
     },
   });
-  lobbySection?.setAttribute('hidden', '');
-  roomSection?.removeAttribute('hidden');
-  UI.updateStartUI(state.isHost);
 }
 
 function handleJoinMessage(message) {
@@ -151,9 +129,7 @@ async function publishState(snapshot = {}) {
   await publishStateNet(enriched);
 }
 
-function logButtonAction(_type, _message, callback) {
-  return ensureSingleAction(UI, () => { callback(); });
-}
+// logButtonAction is created via makeLogButtonAction(UI) in init()
 
 // --- minimal member helpers ---
 
@@ -179,6 +155,7 @@ async function init() {
   await loadCards();
 
   // Provide context to UI (used by Pixi adapter for click→move)
+  const logButtonAction = makeLogButtonAction(UI);
   try { UI.init?.({ state, publishMove, logButtonAction }); } catch {}
 
   // B1: subscribe minimal keys to UI updates
@@ -187,9 +164,9 @@ async function init() {
   subscribe('log', (v) => UI.renderLog(Array.isArray(v) ? v : state.log));
 
   initRouter({
-    onLobby: () => showLobby(),
-    onRoom: (id) => showRoom(id),
-    onInvalid: (msg) => showLobby(msg),
+    onLobby: () => navShowLobby(),
+    onRoom: (id) => navShowRoom(id, { UI, connect: connectRoom }),
+    onInvalid: (msg) => navShowLobby(msg),
   });
 
   bindInputs({
