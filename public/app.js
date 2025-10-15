@@ -13,7 +13,7 @@ import { bindInputs } from './js/ui/inputs.js';
 import { setNotice } from './js/ui/notice.js';
 import { generateRoomId } from './js/utils/id.js';
 import { prepareRoom } from './js/game/setup.js';
-import * as Net from './js/net/ably.js';
+import { connect as connectRealtime, publishJoin as publishJoinNet, publishStart as publishStartNet, publishMove as publishMoveNet, publishState as publishStateNet, getClientId, isConnected } from './js/net/session.js';
 import { state, setState, addMember, subscribe } from './js/state.js';
 
 const lobbySection = document.getElementById('screen-lobby');
@@ -37,9 +37,34 @@ function showRoom(roomId) {
     roomIdLabel.textContent = roomId;
   }
   setNotice('');
-  prepareRoom();
+  prepareRoom(UI);
   setNotice('他のプレイヤーを待機中…');
-  connectRealtime(roomId);
+  if (!state.env?.ABLY_API_KEY) {
+    logAction('network', 'Ablyキー未設定のため接続をスキップ');
+    return;
+  }
+  connectRealtime({
+    apiKey: state.env?.ABLY_API_KEY,
+    channelPrefix: ABLY_CHANNEL_PREFIX,
+    roomId,
+    logAction,
+    handlers: {
+      onConnectionStateChange: () => UI.updateStartUI(state.isHost),
+      onConnected: () => {
+        const id = getClientId();
+        if (id) addMember(id);
+        ensureStarted();
+      },
+      onAttach: () => {
+        ensureStarted();
+        void publishJoinNet(roomId);
+      },
+      onJoin: handleJoinMessage,
+      onStart: handleStartMessage,
+      onMove: handleMoveMessage,
+      onState: handleStateMessage,
+    },
+  });
   lobbySection?.setAttribute('hidden', '');
   roomSection?.removeAttribute('hidden');
   UI.updateStartUI(state.isHost);
@@ -90,44 +115,7 @@ function handleStateMessage(message) {
 
 // applyStateSnapshot moved to js/game/state-sync.js
 
-let netHandle = null;
-
-function connectRealtime(roomId) {
-  if (!roomId) return;
-  if (!state.env?.ABLY_API_KEY) {
-    logAction('network', 'Ablyキー未設定のため接続をスキップ');
-    return;
-  }
-  netHandle = Net.createConnection({
-    apiKey: state.env.ABLY_API_KEY,
-    channelPrefix: ABLY_CHANNEL_PREFIX,
-    roomId,
-    logAction,
-    onConnectionStateChange: () => UI.updateStartUI(state.isHost),
-    onConnected: () => {
-      const id = getClientId();
-      if (id) addMember(id);
-      ensureStarted();
-    },
-    onAttach: () => {
-      ensureStarted();
-      void publishJoin(roomId);
-    },
-    onJoin: handleJoinMessage,
-    onStart: handleStartMessage,
-    onMove: handleMoveMessage,
-    onState: handleStateMessage,
-  });
-}
-
-async function publishJoin(roomId) {
-  if (netHandle) await netHandle.publishJoin({ roomId });
-}
-
-function getClientId() {
-  return netHandle?.getClientId?.() ?? Net.getClientId?.() ?? null;
-}
-
+// publish helpers moved to js/net/session.js
 async function publishStart(members = []) {
   if (!state.roomId) return;
   const payload = {
@@ -136,17 +124,14 @@ async function publishStart(members = []) {
     members: members.length ? members : [{ clientId: getClientId() }],
     startedAt: Date.now(),
   };
-  if (!netHandle?.publishStart) return;
-  await netHandle.publishStart(payload);
+  await publishStartNet(payload);
 }
 
 async function publishMove(move = {}) {
-  if (!netHandle?.publishMove) return;
-  await netHandle.publishMove({ ...move, round: state.turn });
+  await publishMoveNet({ ...move, round: state.turn });
 }
 
 async function publishState(snapshot = {}) {
-  // Merge defaults with provided snapshot; allow caller (host) to override and add extra fields
   const enriched = {
     phase: 'in-round',
     round: state.turn,
@@ -163,8 +148,7 @@ async function publishState(snapshot = {}) {
     updatedAt: Date.now(),
     ...snapshot,
   };
-  if (!netHandle?.publishState) return;
-  await netHandle.publishState(enriched);
+  await publishStateNet(enriched);
 }
 
 function logButtonAction(_type, _message, callback) {
@@ -231,7 +215,7 @@ async function init() {
 // updateStartUI moved to UI.updateStartUI
 
 function ensureStarted() {
-  if (!(netHandle?.isConnected?.() ?? Net.isConnected?.())) return;
+  if (!isConnected()) return;
   return hostEnsureStarted({
     state,
     publishStart,
