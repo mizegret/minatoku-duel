@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>港区デュエル</title>
     <link rel="stylesheet" href="/styles.css">
-    <!-- Import Map: three / GLTFLoader / three-vrm を同一インスタンスに固定 -->
+    <!-- Import Map: three r152 + addons path, three-vrm v3 (jsDelivr to avoid MIME/CORS issues) -->
     <script type="importmap">
       {
         "imports": {
           "three": "https://unpkg.com/three@0.152.2/build/three.module.js",
-          "three/examples/jsm/loaders/GLTFLoader": "https://unpkg.com/three@0.152.2/examples/jsm/loaders/GLTFLoader.js",
-          "@pixiv/three-vrm": "https://unpkg.com/@pixiv/three-vrm@2.0.3/lib/three-vrm.module.js"
+          "three/addons/": "https://unpkg.com/three@0.152.2/examples/jsm/",
+          "@pixiv/three-vrm": "https://unpkg.com/@pixiv/three-vrm@3.0.6/lib/three-vrm.module.js?module"
         }
       }
     </script>

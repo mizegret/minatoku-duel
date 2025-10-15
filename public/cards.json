@@ -1,6 +1,6 @@
 {
   "cards": [
-    { "id": "h_minami", "name": "西青山みなみ", "type": "human", "age": 24, "rarity": "UR", "baseCharm": 2,
+    { "id": "h_minami", "name": "南青山みなみ", "type": "human", "age": 24, "rarity": "UR", "baseCharm": 2,
       "imageUrl": "/assets/cards/humans/h_minami.webp",
       "skills": [
         { "id": "pace_match", "name": "気配りシンク",

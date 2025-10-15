@@ -133,8 +133,11 @@ async function ensurePixi() {
       }
       const three = await import('../three/avatar.js');
       await three.ensureAvatarLayer();
-      // Load fixed asset (no query parameter switching)
-      try { await three.loadAvatar('/assets/vrm/sample.vrm'); } catch {}
+      // Load the single VRM we ship and play walking animation in-place
+      try {
+        const ok = await three.loadAvatar('/assets/vrm/sample.vrm', { visible: false });
+        if (ok) { try { await three.playWalkInPlace('/assets/anime/walk.vrma', { rate: 0.9 }); } catch {} }
+      } catch {}
     } catch {}
 
     // Force initial anchor sizing right after creation

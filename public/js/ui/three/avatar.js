@@ -1,13 +1,19 @@
-// Minimal VRM0 viewer (three r152 + three-vrm v2)
+// Minimal VRM viewer (three r152 + three-vrm v3)
 // - No pose/animation. Just load and render.
 // - Appends a transparent canvas over #canvas-center.
 
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
-import * as VRM from '@pixiv/three-vrm';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+// motion helpers are not needed for in-place playback
+// Import VRM at runtime to allow CDN fallback if the primary URL mis-serves MIME/CORS
 // MToon / VRM0 compat plugins are loaded lazily inside loadAvatar()
 
 let root, renderer, scene, camera, currentVRM, clock;
+// debug flags removed per request
+let mixer = null;
+let activeAction = null;
+let activeClip = null;
+// no tweens (in-place only)
 
 function hostEl() {
   const host = document.getElementById('canvas-center') || document.body;
@@ -50,39 +56,112 @@ export async function ensureAvatarLayer() {
   scene.add(dir);
 
   clock = new THREE.Clock();
+  
   window.addEventListener('resize', resize);
   window.addEventListener('scroll', resize, { passive: true });
   resize();
   tick();
 }
 
-export async function loadAvatar(url) {
+export async function loadAvatar(url, opts = {}) {
   if (!url || !/\.vrm(\?.*)?$/i.test(url)) return false;
   const loader = new GLTFLoader();
-  // Stable pipeline for VRM0 (plugins optional; load lazily so import failures don't break init)
+  loader.setCrossOrigin('anonymous');
+  // Resolve VRM loader from import map or fallback to esm.sh when CDN headers are wrong
+  let VRMLoaderPlugin, VRMUtils;
   try {
-    const [{ VRMMaterialsV0CompatPlugin }, { MToonMaterialLoaderPlugin }] = await Promise.all([
-      import('@pixiv/three-vrm-materials-v0compat'),
-      import('@pixiv/three-vrm-materials-mtoon'),
-    ]);
-    loader.register((p) => new VRMMaterialsV0CompatPlugin(p));
-    loader.register((p) => new MToonMaterialLoaderPlugin(p));
-  } catch {}
-  loader.register((p) => new VRM.VRMLoaderPlugin(p));
+    ({ VRMLoaderPlugin, VRMUtils } = await import('@pixiv/three-vrm'));
+  } catch (e) {
+    ({ VRMLoaderPlugin, VRMUtils } = await import('https://esm.sh/@pixiv/three-vrm@3?deps=three@0.152.2'));
+  }
+  loader.register((p) => new VRMLoaderPlugin(p));
 
-  return new Promise((resolve, reject) => {
-    loader.load(url, (gltf) => {
-      const vrm = gltf.userData.vrm;
-      VRM.VRMUtils.rotateVRM0(vrm);
-      VRM.VRMUtils.removeUnnecessaryJoints(vrm.scene);
+  const gltf = await loader.loadAsync(url);
+  const vrm = gltf.userData.vrm;
+  if (vrm?.meta?.metaVersion === '0') VRMUtils.rotateVRM0(vrm);
+  try { VRMUtils.removeUnnecessaryJoints?.(vrm.scene); } catch {}
 
-      if (currentVRM) { try { scene.remove(currentVRM.scene); } catch {} }
-      currentVRM = vrm;
-      scene.add(vrm.scene);
-      fitToView();
-      resolve(true);
-    }, undefined, (e) => reject(e));
-  });
+  if (currentVRM) { try { scene.remove(currentVRM.scene); } catch {} }
+  currentVRM = vrm;
+  scene.add(vrm.scene);
+  fitToView();
+  // reset animation state for new avatar
+  try { mixer?.stopAllAction?.(); } catch {}
+  mixer = new THREE.AnimationMixer(vrm.scene);
+  
+  activeAction = null;
+  activeClip = null;
+  if (opts && opts.visible === false) {
+    try { currentVRM.scene.visible = false; } catch {}
+  }
+  return true;
+}
+
+// Load a .vrma file and prepare an AnimationAction on the current VRM.
+// Returns true if loaded; false if not supported/failed.
+export async function loadVrma(url, opts = {}) {
+  if (!currentVRM || !url || !/\.vrma(\?.*)?$/i.test(url)) return false;
+  let VRMAnimationLoaderPlugin, createVRMAnimationClip;
+  try {
+    ({ VRMAnimationLoaderPlugin } = await import('@pixiv/three-vrm'));
+  } catch (_) {}
+  // In v3 the animation helpers live in a separate entry: @pixiv/three-vrm-animation
+  try {
+    const mod = await import('@pixiv/three-vrm-animation');
+    createVRMAnimationClip = mod.createVRMAnimationClip || mod.createVRMAnimationClipFromVRM;
+    if (!VRMAnimationLoaderPlugin && mod.VRMAnimationLoaderPlugin) {
+      VRMAnimationLoaderPlugin = mod.VRMAnimationLoaderPlugin;
+    }
+  } catch (_) {
+    const mod = await import('https://esm.sh/@pixiv/three-vrm-animation@3?deps=three@0.152.2');
+    createVRMAnimationClip = mod.createVRMAnimationClip || mod.createVRMAnimationClipFromVRM;
+    if (!VRMAnimationLoaderPlugin && mod.VRMAnimationLoaderPlugin) {
+      VRMAnimationLoaderPlugin = mod.VRMAnimationLoaderPlugin;
+    }
+  }
+  if (!createVRMAnimationClip) return false;
+
+  const loader = new GLTFLoader();
+  loader.setCrossOrigin('anonymous');
+  try { if (VRMAnimationLoaderPlugin) loader.register((p) => new VRMAnimationLoaderPlugin(p)); } catch {}
+  let vrma;
+  try {
+    const gltf = await loader.loadAsync(url);
+    const list = gltf.userData?.vrmAnimations;
+    vrma = Array.isArray(list) ? list[0] : null;
+  } catch {
+    return false;
+  }
+  if (!vrma) return false;
+
+  // Convert to a THREE.AnimationClip bound to this VRM
+  const clip = createVRMAnimationClip(vrma, currentVRM);
+  if (!clip) return false;
+  if (!mixer) mixer = new THREE.AnimationMixer(currentVRM.scene);
+  try { activeAction?.stop(); } catch {}
+  activeClip = clip;
+  activeAction = mixer.clipAction(clip);
+  try { activeAction.reset(); } catch {}
+  if (typeof activeAction.setLoop === 'function') activeAction.setLoop(THREE.LoopRepeat, Infinity);
+  activeAction.clampWhenFinished = false;
+  activeAction.enabled = true;
+  if (Number.isFinite(opts.rate)) { try { activeAction.timeScale = opts.rate; } catch {} }
+  try { activeAction.reset(); } catch {}
+  activeAction.play();
+  
+  return true;
+}
+
+// Walk from the left edge into the center while playing a VRMA.
+// Options: { durationSec=3, margin=0.15 }
+// walkToCenter removed (in-place verification mode only)
+
+// Play walking animation without translating the avatar (verification step).
+export async function playWalkInPlace(vrmaUrl, opts = {}) {
+  if (!currentVRM) return false;
+  const ok = await loadVrma(vrmaUrl, { rate: Number.isFinite(opts.rate) ? opts.rate : undefined }).catch(() => false);
+  try { currentVRM.scene.visible = true; } catch {}
+  return ok;
 }
 
 function attach() {
@@ -119,5 +198,6 @@ function tick() {
   requestAnimationFrame(tick);
   const delta = clock.getDelta();
   if (currentVRM?.update) currentVRM.update(delta);
+  try { mixer?.update?.(delta); } catch {}
   renderer.render(scene, camera);
 }
