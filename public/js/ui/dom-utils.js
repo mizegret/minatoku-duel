@@ -12,3 +12,19 @@ export function buildLogHTML(log = []) {
     .join('');
 }
 
+export function updateScoresDOM({ charm, oji, total }) {
+  const c = document.getElementById('score-charm');
+  const o = document.getElementById('score-oji');
+  const t = document.getElementById('score-total');
+  if (c) c.textContent = String(charm ?? 0);
+  if (o) o.textContent = String(oji ?? 0);
+  const fallback = (charm ?? 0) + (oji ?? 0);
+  if (t) t.textContent = String(total ?? fallback);
+}
+
+export function updateDeckCountsDOM(selfCount = 0, oppCount = 0) {
+  const a = document.getElementById('deck-self-count');
+  const b = document.getElementById('deck-opponent-count');
+  if (a) a.textContent = String(selfCount);
+  if (b) b.textContent = String(oppCount);
+}

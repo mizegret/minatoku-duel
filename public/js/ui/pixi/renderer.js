@@ -1,5 +1,5 @@
 // Pixi renderer (hybrid): center canvas only（何も描かない）
-import { buildLogHTML } from '../dom-utils.js';
+import { buildLogHTML, updateScoresDOM, updateDeckCountsDOM } from '../dom-utils.js';
 
 let pixiApp = null;
 let pixiRoot = null;
@@ -160,23 +160,14 @@ export function renderGame(state) {
 }
 
 export function updateScores({ charm, oji, total }) {
-  const c = document.getElementById('score-charm');
-  const o = document.getElementById('score-oji');
-  const t = document.getElementById('score-total');
-  if (c) c.textContent = String(charm ?? 0);
-  if (o) o.textContent = String(oji ?? 0);
-  const fallback = (charm ?? 0) + (oji ?? 0);
-  if (t) t.textContent = String(total ?? fallback);
+  updateScoresDOM({ charm, oji, total });
 }
 export function updateTurnIndicator(turn, total) {
   const el = document.getElementById('turn-indicator');
   if (el) el.textContent = `ターン ${turn} / ${total}`;
 }
 export function updateDeckCounts(selfCount = 0, oppCount = 0) {
-  const a = document.getElementById('deck-self-count');
-  const b = document.getElementById('deck-opponent-count');
-  if (a) a.textContent = String(selfCount);
-  if (b) b.textContent = String(oppCount);
+  updateDeckCountsDOM(selfCount, oppCount);
 }
 export function renderLog(log = []) {
   const el = document.getElementById('log-vertical') || document.getElementById('action-log');

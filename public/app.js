@@ -3,7 +3,7 @@ import { initRouter, navigateToRoom } from './js/router.js';
 import { loadEnvironment } from './js/data/env.js';
 import { loadCards } from './js/data/cards.js';
 import { applyStateSnapshot } from './js/game/state-sync.js';
-import { ensureSingleAction, logAction, makeLogButtonAction } from './js/ui/actions.js';
+import { logAction, makeLogButtonAction } from './js/ui/actions.js';
 // host/game logic
 import { ensureStarted as hostEnsureStarted, handleMoveMessage as hostHandleMoveMessage } from './js/game/host.js';
 // UI renderer is selected at runtime to keep default DOM UI intact.
@@ -79,7 +79,7 @@ function handleStartMessage(message) {
 function handleMoveMessage(message) {
   return hostHandleMoveMessage(message, {
     state,
-    publishState,
+    publishState: publishStateNet,
     getMembers,
     getClientId,
     logAction,
@@ -93,41 +93,7 @@ function handleStateMessage(message) {
 
 // applyStateSnapshot moved to js/game/state-sync.js
 
-// publish helpers moved to js/net/session.js
-async function publishStart(members = []) {
-  if (!state.roomId) return;
-  const payload = {
-    roomId: state.roomId,
-    hostId: getClientId(),
-    members: members.length ? members : [{ clientId: getClientId() }],
-    startedAt: Date.now(),
-  };
-  await publishStartNet(payload);
-}
-
-async function publishMove(move = {}) {
-  await publishMoveNet({ ...move, round: state.turn });
-}
-
-async function publishState(snapshot = {}) {
-  const enriched = {
-    phase: 'in-round',
-    round: state.turn,
-    turnOwner: getClientId(),
-    players: [
-      {
-        clientId: getClientId(),
-        hand: state.self?.hand ?? [],
-        field: state.self?.field ?? { humans: [] },
-        scores: state.scores ?? { charm: 0, oji: 0, total: 0 },
-      },
-    ],
-    log: state.log,
-    updatedAt: Date.now(),
-    ...snapshot,
-  };
-  await publishStateNet(enriched);
-}
+// publish helpers: use session.js directly
 
 // logButtonAction is created via makeLogButtonAction(UI) in init()
 
@@ -156,7 +122,7 @@ async function init() {
 
   // Provide context to UI (used by Pixi adapter for click→move)
   const logButtonAction = makeLogButtonAction(UI);
-  try { UI.init?.({ state, publishMove, logButtonAction }); } catch {}
+  try { UI.init?.({ state, publishMove: publishMoveNet, logButtonAction }); } catch {}
 
   // B1: subscribe minimal keys to UI updates
   subscribe('turn', (v) => UI.updateTurnIndicator(v ?? state.turn, TOTAL_TURNS));
@@ -180,7 +146,7 @@ async function init() {
     getRoomId: () => state.roomId,
     state,
     logButtonAction,
-    publishMove,
+    publishMove: publishMoveNet,
   });
 
   // Startボタンは廃止（自動開始）

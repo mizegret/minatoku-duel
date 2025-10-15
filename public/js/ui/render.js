@@ -1,5 +1,5 @@
 import { TOTAL_TURNS, MAX_DECORATIONS_PER_HUMAN } from '../constants.js';
-import { buildLogHTML } from './dom-utils.js';
+import { buildLogHTML, updateScoresDOM, updateDeckCountsDOM } from './dom-utils.js';
 // Optional init hook for alternative renderers parity
 export function init(_ctx) { /* no-op for DOM renderer */ }
 
@@ -88,10 +88,7 @@ export function renderGame(state) {
 }
 
 export function updateScores({ charm, oji, total }) {
-  if (refs.scoreCharm) refs.scoreCharm.textContent = String(charm ?? 0);
-  if (refs.scoreOji) refs.scoreOji.textContent = String(oji ?? 0);
-  const fallbackTotal = (charm ?? 0) + (oji ?? 0);
-  if (refs.scoreTotal) refs.scoreTotal.textContent = String(total ?? fallbackTotal);
+  updateScoresDOM({ charm, oji, total });
 }
 
 export function updateTurnIndicator(turn, totalTurns = TOTAL_TURNS) {
@@ -100,8 +97,7 @@ export function updateTurnIndicator(turn, totalTurns = TOTAL_TURNS) {
 }
 
 export function updateDeckCounts(selfCount = 0, oppCount = 0) {
-  if (refs.deckSelfCount) refs.deckSelfCount.textContent = String(selfCount);
-  if (refs.deckOpponentCount) refs.deckOpponentCount.textContent = String(oppCount);
+  updateDeckCountsDOM(selfCount, oppCount);
 }
 
 export function renderLog(log = []) {
