@@ -97,7 +97,9 @@ function checkExecBits() {
         fail(`実行権限(+x)がありません: ${t}`);
         bad++;
       }
-    } catch (e) { /* ignore */ }
+    } catch (_e) {
+      /* ignore */
+    }
   }
   if (!bad) ok('実行権限チェック (.husky, scripts/*.sh)');
 }
@@ -125,7 +127,9 @@ async function main() {
     } else {
       ok('dist/env* は未追跡（OK）');
     }
-  } catch (e) { /* ignore */ }
+  } catch (_e) {
+    /* ignore */
+  }
   await checkGhExtension();
   // CI/PR 状態チェック（PRが存在する場合）
   try {
@@ -155,7 +159,7 @@ async function main() {
         }
       }
     }
-  } catch (e) {
+  } catch (_e) {
     // gh が未設定でも doctor を継続
   }
   if (failCount > 0 && strict) process.exit(1);
