@@ -14,7 +14,7 @@
     "test": "vitest run --reporter verbose",
     "test:ui": "playwright test --reporter=line",
     "lint:md": "markdownlint-cli2 \"**/*.md\" \"#node_modules\" \"#dist\"",
-    "lint:md:links": "remark -q -f .",
+    "lint:md:links": "remark -q .",
     "lint:mermaid": "node scripts/check-mermaid.mjs",
     "lint:shell": "node scripts/check-shell.mjs --staged",
     "lint:assets": "node scripts/check-assets.mjs",
