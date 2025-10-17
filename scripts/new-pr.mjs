@@ -1,5 +1,8 @@
 #!/usr/bin/env node
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { writeFileSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const issue = process.argv[2];
 if (!issue) {
@@ -20,17 +23,40 @@ const title = JSON.parse(exec('gh', ['issue', 'view', issue, '-R', repo, '--json
 const parent = 6; // Epic
 const head = exec('git', ['rev-parse', '--abbrev-ref', 'HEAD']).trim();
 const prTitle = `${title}（docs）`;
-const body = `Closes #${issue}\n\nRefs #${parent}\n`;
+const bodyStr = `Closes #${issue}\n\nRefs #${parent}\n`;
+
+// Preflight checks (fail-fast)
+const cmds = [
+  ['npm', ['run', '-s', 'format:check']],
+  ['npm', ['run', '-s', 'lint:md']],
+  ['npm', ['run', '-s', 'lint:md:links']],
+  ['npm', ['run', '-s', 'lint:mermaid']],
+  ['npm', ['test', '--silent']],
+  ['node', ['scripts/repo-doctor.mjs', '--strict']],
+];
+for (const [cmd, args] of cmds) {
+  const r = spawnSync(cmd, args, { stdio: 'inherit' });
+  if (r.status !== 0) {
+    console.error(`Preflight failed: ${cmd} ${args.join(' ')}`);
+    process.exit(r.status || 1);
+  }
+}
+
+// Use body-file to ensure markdown newlines render correctly
+const dir = mkdtempSync(join(tmpdir(), 'pr-'));
+const bodyFile = join(dir, 'BODY.md');
+writeFileSync(bodyFile, bodyStr, 'utf8');
+
 const url = exec('gh', [
   'pr',
   'create',
-  '-t',
+  '--title',
   prTitle,
-  '-b',
-  body,
-  '-B',
+  '--body-file',
+  bodyFile,
+  '--base',
   'main',
-  '-H',
+  '--head',
   head,
   '--repo',
   repo,
