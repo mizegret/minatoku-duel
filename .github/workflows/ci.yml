@@ -13,6 +13,9 @@ jobs:
       app: ${{ steps.filter.outputs.app }}
       docs_mermaid: ${{ steps.filter.outputs.docs_mermaid }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: dorny/paths-filter@v3
         id: filter
         with:

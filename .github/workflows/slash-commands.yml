@@ -56,6 +56,15 @@ jobs:
               else await github.rest.issues.removeLabel({ ...context.repo, issue_number, name: 'automerge' }).catch(()=>{});
               return;
             }
+            if (cmd === '/rebase' && isPR) {
+              try {
+                await github.rest.pulls.updateBranch({ ...context.repo, pull_number: issue_number });
+                await comment('Rebase requested: updating branch from base.');
+              } catch (e) {
+                await comment(`Rebase failed: ${e?.message || e}`);
+              }
+              return;
+            }
             if (cmd === '/owner' && isPR) {
               const on = (args[0]||'').toLowerCase();
               if (on === 'on') await addLabels(['requires-owner']);
