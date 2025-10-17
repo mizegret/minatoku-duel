@@ -24,8 +24,13 @@ Pages 設定（想定）
 
 環境変数（例）
 
-- `ABLY_API_KEY`（Functions のサーバ側のみ）
+- `ABLY_API_KEY`（Pages Functions のサーバ側のみ・Secretsで管理）
 - `ABLY_KEY_NAME`（任意。キーの識別名）
+
+ローカル開発（任意）
+
+- ルートに `env.local.json` を作成して ABLY_API_KEY を設定してください（Git追跡外）。
+- サンプル: `env.local.json.example`
 
 Functions（例）
 

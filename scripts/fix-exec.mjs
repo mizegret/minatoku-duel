@@ -35,7 +35,7 @@ function ensureExec(path) {
   try {
     sh('git', ['update-index', '--chmod=+x', path]);
     return true;
-  } catch {
+  } catch (_e) {
     return false;
   }
 }
