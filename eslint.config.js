@@ -11,15 +11,15 @@ export default [
       sourceType: 'module',
       globals: {
         ...globals.browser,
-        ...globals.node
-      }
+        ...globals.node,
+      },
     },
     rules: {
       'no-console': 'off',
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       'no-implicit-globals': 'error',
-      eqeqeq: ['error', 'smart']
-    }
+      eqeqeq: ['error', 'smart'],
+    },
   },
   {
     files: ['tests/**/*.test.ts', 'e2e/**/*.ts'],
@@ -32,16 +32,11 @@ export default [
         beforeAll: 'readonly',
         afterAll: 'readonly',
         beforeEach: 'readonly',
-        afterEach: 'readonly'
-      }
-    }
+        afterEach: 'readonly',
+      },
+    },
   },
   {
-    ignores: [
-      'node_modules/**',
-      'dist/**',
-      'coverage/**',
-      'public/env.local.json'
-    ]
-  }
+    ignores: ['node_modules/**', 'dist/**', 'coverage/**', 'public/env.local.json'],
+  },
 ];

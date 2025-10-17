@@ -4,4 +4,3 @@ test.skip('プレースホルダー: まだアプリがないためスキップ'
   await page.goto('about:blank');
   await expect(page).toBeDefined();
 });
-

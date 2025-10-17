@@ -4,7 +4,6 @@ export default defineConfig({
   testDir: 'e2e',
   reporter: 'list',
   use: {
-    headless: true
-  }
+    headless: true,
+  },
 });
-

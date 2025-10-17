@@ -7,4 +7,3 @@ describe('ドキュメントの存在確認', () => {
     expect(existsSync('AGENTS.md')).toBe(true);
   });
 });
-

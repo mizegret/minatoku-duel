@@ -10,19 +10,25 @@ async function main() {
     try {
       const { stdout } = await exec('gh', ['api', 'user', '-q', '.login']);
       login = stdout.trim();
-    } catch { /* noop */ void 0; }
+    } catch {
+      /* noop */ void 0;
+    }
   }
   if (!login) {
     try {
       const { stdout } = await exec('git', ['config', '--get', 'github.user']);
       login = stdout.trim();
-    } catch { /* noop */ void 0; }
+    } catch {
+      /* noop */ void 0;
+    }
   }
   if (!login) {
     try {
       const { stdout } = await exec('git', ['config', '--get', 'user.name']);
       login = stdout.trim();
-    } catch { /* noop */ void 0; }
+    } catch {
+      /* noop */ void 0;
+    }
   }
   console.log(login || '');
 }
