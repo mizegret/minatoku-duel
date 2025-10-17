@@ -9,6 +9,7 @@
   },
   "scripts": {
     "prepare": "husky || true",
+    "build": "node scripts/build-placeholder.mjs",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

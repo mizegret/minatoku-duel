@@ -37,7 +37,7 @@
 flowchart TB
   sm[SM] --> s1[Stack: Header -> Scene -> Info -> Log]
   md[MD] --> m1[2 Columns: Left+Center / Log below]
-  lg[LG] --> l1[3 Columns: Left | Center | Right]
+  lg[LG] --> l1[3 Columns: Left &#124; Center &#124; Right]
 ```
 
 - Canvas の再マウントを避け、内部のオブジェクトのみ更新。
