@@ -1,0 +1,31 @@
+name: Sub Issue (Implement/Docs/Test)
+description: Create a sub-issue linked to a parent
+title: '<type>: <title>'
+labels: ['type:task']
+body:
+  - type: input
+    id: parent
+    attributes:
+      label: Parent Issue
+      description: Link to the parent (e.g., #123)
+      placeholder: '#<number>'
+    validations:
+      required: true
+  - type: dropdown
+    id: subtype
+    attributes:
+      label: Work Type
+      options:
+        - implement
+        - docs
+        - test
+        - refactor
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: What to do and how to verify
+    validations:
+      required: true
