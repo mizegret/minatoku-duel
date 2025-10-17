@@ -12,15 +12,14 @@ read -r add del files <<<"$(git diff --cached --numstat | awk '{adds+=$1; dels+=
 total=$((add + del))
 
 if [ "$files" -gt "$max_files" ] || [ "$total" -gt "$max_lines" ]; then
-  echo "\n[粒度チェック] 変更が大きすぎます。" >&2
-  echo "  ファイル数: $files (上限 $max_files)" >&2
-  echo "  変更行数: $total (上限 $max_lines)" >&2
-  echo "\nヒント: 'git add -p' で意味単位に分割、またはファイル単位で段階的にコミットしてください。" >&2
-  echo "どうしても必要な場合のみ 'ALLOW_LARGE_COMMIT=1 git commit' で回避可。" >&2
+  printf "\n[粒度チェック] 変更が大きすぎます。\n" >&2
+  printf "  ファイル数: %s (上限 %s)\n" "$files" "$max_files" >&2
+  printf "  変更行数: %s (上限 %s)\n" "$total" "$max_lines" >&2
+  printf "\nヒント: 'git add -p' で意味単位に分割、またはファイル単位で段階的にコミットしてください。\n" >&2
+  printf "どうしても必要な場合のみ 'ALLOW_LARGE_COMMIT=1 git commit' で回避可。\n" >&2
   if [ "${ALLOW_LARGE_COMMIT:-0}" != "1" ]; then
     exit 1
   fi
 fi
 
 exit 0
-

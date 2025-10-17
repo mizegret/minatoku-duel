@@ -1,0 +1,27 @@
+[
+  { "name": "area:ci", "color": "1d76db", "description": "CI and workflows" },
+  { "name": "type:docs", "color": "0e8a16", "description": "Documentation changes" },
+  { "name": "automerge", "color": "fbca04", "description": "Enable PR automerge (squash)" },
+  { "name": "requires-owner", "color": "b60205", "description": "Owner approval required" },
+  {
+    "name": "allow:code-change",
+    "color": "5319e7",
+    "description": "Phase 1 exception: allow code change"
+  },
+  { "name": "allow:large-pr", "color": "d93f0b", "description": "Allow large PR size exception" },
+  {
+    "name": "phase:switch",
+    "color": "006b75",
+    "description": "Temporary switch allowing code change beyond docs"
+  },
+  {
+    "name": "needs:markdown",
+    "color": "c5def5",
+    "description": "Issue body lint suggests markdown edits"
+  },
+  { "name": "size/XS", "color": "ededed", "description": "Diff size XS" },
+  { "name": "size/S", "color": "bfdadc", "description": "Diff size S" },
+  { "name": "size/M", "color": "c2e0c6", "description": "Diff size M" },
+  { "name": "size/L", "color": "fef2c0", "description": "Diff size L" },
+  { "name": "size/XL", "color": "f9d0c4", "description": "Diff size XL" }
+]
