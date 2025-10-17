@@ -97,9 +97,7 @@ function checkExecBits() {
         fail(`実行権限(+x)がありません: ${t}`);
         bad++;
       }
-    } catch {
-      // ignore
-    }
+    } catch (e) { /* ignore */ }
   }
   if (!bad) ok('実行権限チェック (.husky, scripts/*.sh)');
 }
@@ -119,6 +117,15 @@ async function main() {
   await checkPkg();
   await checkFiles();
   checkExecBits();
+  // disallow tracked dist/
+  try {
+    const { stdout } = await exec('git', ['ls-files', 'dist/env*']);
+    if (stdout && stdout.trim().length) {
+      fail('dist/ 配下の env* はコミット禁止です（削除しましたか？）');
+    } else {
+      ok('dist/env* は未追跡（OK）');
+    }
+  } catch (e) { /* ignore */ }
   await checkGhExtension();
   // CI/PR 状態チェック（PRが存在する場合）
   try {

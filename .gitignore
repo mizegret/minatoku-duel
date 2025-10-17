@@ -1,2 +1,3 @@
 public/env.local.json
 node_modules
+dist/
