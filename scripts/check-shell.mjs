@@ -1,0 +1,76 @@
+#!/usr/bin/env node
+import { stat } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const exec = promisify(execFile);
+
+const args = process.argv.slice(2);
+const isFromLintStaged = args.includes('--staged');
+const filesFromArgs = args.filter((a) => !a.startsWith('--'));
+
+async function listStagedShellFiles() {
+  const { stdout } = await exec('git', ['diff', '--cached', '--name-only', '--diff-filter=ACMR']);
+  return stdout
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .filter((f) => f.endsWith('.sh') || f.startsWith('.husky/'));
+}
+
+async function hasBinary(cmd) {
+  try {
+    await exec(cmd, ['--version']);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function checkExecutableBit(path) {
+  try {
+    const s = await stat(path);
+    // any execute bit set
+    return (s.mode & 0o111) !== 0;
+  } catch {
+    return false;
+  }
+}
+
+function fail(msg) {
+  console.error(msg);
+  process.exitCode = 1;
+}
+
+const run = async () => {
+  const files = isFromLintStaged ? await listStagedShellFiles() : filesFromArgs;
+  if (!files.length) {
+    return;
+  }
+
+  const hasShellcheck = await hasBinary('shellcheck');
+  for (const file of files) {
+    try {
+      // Syntax check
+      await exec('bash', ['-n', file]);
+    } catch (e) {
+      fail(`[shell] 構文エラー: ${file}\n${e.stderr || e.stdout || e.message}`);
+    }
+    // Execute bit (only for scripts in repo/scripts or husky)
+    if (file.startsWith('scripts/') || file.startsWith('.husky/')) {
+      const ok = await checkExecutableBit(file);
+      if (!ok) fail(`[shell] 実行権限(＋x)がありません: ${file}`);
+    }
+    // Optional: shellcheck
+    if (hasShellcheck) {
+      try {
+        await exec('shellcheck', ['-x', file]);
+      } catch (e) {
+        fail(`[shellcheck] 指摘あり: ${file}\n${e.stdout || e.stderr || e.message}`);
+      }
+    } else {
+      console.log(`[info] shellcheck 未インストール: ${file} の静的解析をスキップ（CIで実施）`);
+    }
+  }
+};
+
+run();
