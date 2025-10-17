@@ -44,6 +44,6 @@
     "remark-preset-lint-recommended": "^6.1.2",
     "remark-validate-links": "^13.0.2",
     "@secretlint/secretlint-rule-preset-recommend": "^8.2.5",
-    "secretlint": "^8.2.5"
+    "secretlint": "^11.2.5"
   }
 }
