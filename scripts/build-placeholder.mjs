@@ -1,5 +1,13 @@
 #!/usr/bin/env node
-import { mkdirSync, writeFileSync, existsSync, cpSync } from 'node:fs';
+import {
+  mkdirSync,
+  writeFileSync,
+  existsSync,
+  readdirSync,
+  statSync,
+  cpSync,
+  unlinkSync,
+} from 'node:fs';
 import { join } from 'node:path';
 
 const out = 'dist';
@@ -7,6 +15,16 @@ if (!existsSync(out)) mkdirSync(out, { recursive: true });
 
 // Copy static assets if present
 if (existsSync('public')) cpSync('public', out, { recursive: true });
+// remove any env.* files copied under dist (do not ship local env)
+for (const f of ['env.local.json', 'env.json']) {
+  const p = join(out, f);
+  if (existsSync(p))
+    try {
+      unlinkSync(p);
+    } catch (_e) {
+      /* ignore */
+    }
+}
 // copy docs images for preview
 if (existsSync('docs/ui/images')) {
   const target = join(out, 'docs/ui/images');
