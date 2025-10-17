@@ -1,0 +1,13 @@
+# Default code owners
+* @mizegret
+
+# CI/Workflows
+.github/** @mizegret
+
+# Docs
+docs/** @mizegret
+
+# Scripts and hooks
+scripts/** @mizegret
+.husky/** @mizegret
+
