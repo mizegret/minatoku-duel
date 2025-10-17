@@ -26,7 +26,7 @@ export default [
     },
   },
   {
-    files: ['tests/**/*.test.ts', 'e2e/**/*.ts'],
+    files: ['tests/**/*.test.{ts,js}', 'e2e/**/*.ts'],
     languageOptions: {
       globals: {
         describe: 'readonly',
