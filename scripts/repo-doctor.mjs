@@ -3,7 +3,7 @@
 // 失敗で終了: CI/--strict 指定時。ローカルは警告表示のみ。
 
 import { readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
@@ -81,6 +81,29 @@ async function checkFiles() {
   ok('必須ファイル存在確認');
 }
 
+function checkExecBits() {
+  const targets = [
+    '.husky/pre-commit',
+    '.husky/commit-msg',
+    '.husky/pre-push',
+    'scripts/check-granularity.sh',
+    'scripts/mk-branch.sh',
+  ].filter(existsSync);
+  let bad = 0;
+  for (const t of targets) {
+    try {
+      const mode = statSync(t).mode;
+      if ((mode & 0o111) === 0) {
+        fail(`実行権限(+x)がありません: ${t}`);
+        bad++;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  if (!bad) ok('実行権限チェック (.husky, scripts/*.sh)');
+}
+
 async function checkGhExtension() {
   try {
     const { stdout } = await exec('gh', ['extension', 'list']);
@@ -95,6 +118,7 @@ async function main() {
   await checkNode();
   await checkPkg();
   await checkFiles();
+  checkExecBits();
   await checkGhExtension();
   // CI/PR 状態チェック（PRが存在する場合）
   try {

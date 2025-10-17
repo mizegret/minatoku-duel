@@ -14,6 +14,7 @@
 - [ ] `npm run lint:md && npm run lint:md:links && npm run lint:mermaid`
 - [ ] `npm run checklist:post` で最終確認
 - [ ] PR本文 日本語 / `Closes #<親Issue>` / スクショ or 計測
+  - 補足: pre-commit の自己レビューで 'yes' 入力が必要。直近の実行結果は `.git/self-review-latest.txt` に保存されます。
 
 CI/自動ガード
 
