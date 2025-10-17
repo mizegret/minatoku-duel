@@ -98,14 +98,27 @@ async function main() {
   await checkGhExtension();
   // CI/PR 状態チェック（PRが存在する場合）
   try {
-    const { stdout: prOut } = await exec('gh', ['pr', 'view', '--json', 'number,headRefName,statusCheckRollup', '-q', '.', '-R', process.env.GH_REPO || '' ]);
+    const { stdout: prOut } = await exec('gh', [
+      'pr',
+      'view',
+      '--json',
+      'number,headRefName,statusCheckRollup',
+      '-q',
+      '.',
+      '-R',
+      process.env.GH_REPO || '',
+    ]);
     if (prOut) {
       const pr = JSON.parse(prOut);
       if (pr.number) {
-        const fails = (pr.statusCheckRollup || []).filter(c => (c.conclusion === 'FAILURE'));
+        const fails = (pr.statusCheckRollup || []).filter((c) => c.conclusion === 'FAILURE');
         if (fails.length) {
-          warn(`PR #${pr.number} で失敗中のチェック: ${fails.map(f=>`${f.workflowName||''}:${f.name}`).join(', ')}`);
-          warn('サイズガードなら label:"allow:large-pr"、Phase1ガードなら label:"allow:code-change" をPRに付与');
+          warn(
+            `PR #${pr.number} で失敗中のチェック: ${fails.map((f) => `${f.workflowName || ''}:${f.name}`).join(', ')}`
+          );
+          warn(
+            'サイズガードなら label:"allow:large-pr"、Phase1ガードなら label:"allow:code-change" をPRに付与'
+          );
         } else {
           ok(`PR #${pr.number} のチェックは進行中/成功`);
         }
