@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  node-quality:
+    name: Lint / Format / Unit Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install deps
+        run: npm ci || npm i --no-audit --no-fund
+      - name: ESLint
+        run: npm run -s lint
+      - name: Prettier (check)
+        run: npm run -s format:check
+      - name: Markdownlint
+        run: npm run -s lint:md
+      - name: Remark (links)
+        run: npm run -s lint:md:links
+      - name: Shell (syntax & optional shellcheck)
+        run: |
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          node scripts/check-shell.mjs $(git ls-files '*.sh' '.husky/*' | tr '\n' ' ')
+      - name: Secretlint
+        run: npx secretlint "**/*" -f @secretlint/formatter-stylish
+      - name: Vitest
+        run: npm run -s test
+
+  e2e:
+    name: E2E (conditional)
+    runs-on: ubuntu-latest
+    needs: [node-quality]
+    if: ${{ contains(github.event.pull_request.changed_files, 'src/') || contains(github.event.pull_request.changed_files, 'public/index.html') || github.ref == 'refs/heads/main' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install deps
+        run: npm ci || npm i --no-audit --no-fund
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+      - name: Mermaid syntax check
+        run: npm run -s lint:mermaid
+      - name: Run e2e (placeholder)
+        run: npm run -s test:ui

@@ -1,0 +1,49 @@
+{
+  "name": "minatoku-duel",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Docs-first phase with guardrails and tooling",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "prepare": "husky || true",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run --reporter verbose",
+    "test:ui": "playwright test --reporter=line",
+    "lint:md": "markdownlint-cli2 \"**/*.md\" \"#node_modules\" \"#dist\"",
+    "lint:md:links": "remark -q .",
+    "lint:mermaid": "node scripts/check-mermaid.mjs",
+    "lint:shell": "node scripts/check-shell.mjs --staged",
+    "lint:assets": "node scripts/check-assets.mjs",
+    "doctor": "node scripts/repo-doctor.mjs",
+    "checklist:pre": "node scripts/task-checklist.mjs pre",
+    "checklist:post": "node scripts/task-checklist.mjs post"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.5.0",
+    "@commitlint/config-conventional": "^19.5.0",
+    "@eslint/js": "^9.13.0",
+    "@playwright/test": "^1.48.2",
+    "eslint": "^9.13.0",
+    "eslint-config-prettier": "^9.1.0",
+    "globals": "^15.12.0",
+    "husky": "^9.1.6",
+    "lint-staged": "^15.2.10",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.3",
+    "fast-glob": "^3.3.2",
+    "markdownlint-cli2": "^0.15.0",
+    "mermaid": "^11.3.0",
+    "playwright": "^1.48.2",
+    "remark-cli": "^12.0.0",
+    "remark-gfm": "^4.0.0",
+    "remark-preset-lint-recommended": "^6.1.2",
+    "remark-validate-links": "^13.0.2",
+    "@secretlint/secretlint-rule-preset-recommend": "^8.2.5",
+    "secretlint": "^8.2.5"
+  }
+}

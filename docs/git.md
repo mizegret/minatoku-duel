@@ -1,55 +1,54 @@
-# Git 運用メモ（Minatoku Duel）
+# Git/Issue/PR 運用ルール v1 (Phase 1)
 
-このプロジェクトでは、Bot/人間いずれも「勝手に commit しない」ことを原則とします。変更は提案→確認→承認→commit の順で進めます。
+目的
 
-## コミットメッセージ規約
+- 仕様駆動・小粒進行を支える Git/GitHub の作法を明文化。
+
+基本方針
+
+- 1論点=1PR。常に親Issueと子Issue（必要に応じて）で管理。
+- すべてのPRは対応するIssueに紐付ける（`Closes #123` or `Refs #123`）。
+- コミット前に「提案差分→承認→コミット」を原則とする（緊急以外）。
+
+ブランチ命名
+
+- `feat/<scope>-<topic>` 新機能
+- `fix/<scope>-<topic>` 不具合
+- `docs/<scope>-<topic>` 文書
+- `refactor/<scope>-<topic>` リファクタ
+- 例: `docs/events-envelope-v1`, `feat/net-ably-auth`
+
+コミットメッセージ（Conventional Commits 互換）
 
 - 形式: `type(scope): subject`
-- 主な `type`:
-  - `feat` 新機能
-  - `fix` バグ修正
-  - `refactor` 構造変更（挙動不変）
-  - `ui` UI 関連（見た目/操作の変更）
-  - `docs` ドキュメント
-  - `rule` ルール/仕様変更
-  - `chore` 雑務・CI 等
-- `scope` の指針:
-  - フェーズ/領域を短く明示（例: `step3/host`, `step4/ui`, `net/ably`, `cards`）
-- `subject`:
-  - 50 文字以内の要約。必要ならセミコロン以降に補足（日本語/英語混在可）。
+- 主な `type`: `feat` `fix` `refactor` `ui` `docs` `rule` `chore`
+- 例: `docs(api): define envelope and retry backoff (draft)`
 
-### 例
+Issue 運用
 
-- `refactor(step2): extract deck/cards utils; switch to imports`
-- `ui(copy): rename Skip to 'このターンは様子見'`
-- `rule(decorations): charm-only; no oji on equip`
+- 親Issue=エピック/タスク本体、子Issue=実装/資料/検証などの具体ステップ。
+- ラベル（推奨）: `type:feature` `type:bug` `type:docs` `area:net` `area:3d` `area:ui` `priority:p1-p3`。
 
-## 粒度の原則
+PR 運用
 
-- 1 つの論理変更 = 1 コミット。
-- 移動/リネームは関連ロジックと同じコミットで OK（差分の追跡性重視）。
+- PR本文: 親Issueを最上部で参照（`Closes #<id>` または `Refs #<id>`）。
+- チェックリスト: 動作影響/レビュー観点/破壊変更の有無/スクショ or 計測値。
+- 小さく出す。100〜300行を目安に分割。
 
-## Bot 運用ポリシー
-
-- 事前に「やること＋予定メッセージ」を提示し、承認後に commit 実行。
-- メッセージは既存履歴の書式に合わせ、`type(scope)` の整合を取る。
-
-## メッセージ修正フロー（履歴整形）
-
-- 直近を修正: `git commit --amend -m "..."`
-- それ以前を修正: `git rebase -i HEAD~N` で対象行を `reword` にし、エディタで書き換え。
-  - 共同作業ブランチの履歴書き換え（rebase/force-push）は要承認。
-
-## よく使うコマンド
+CLI（GitHub CLI + sub-issue）
 
 ```bash
-# 直近のメッセージだけ修正
-git commit --amend -m "refactor(step4/ui): ..."
+# 親Issue（エピック）
+gh issue create -t "[Epic] Ably events v1" -b "概要..." -l "type:feature,area:net" -p <owner>/<repo>
 
-# 2 件分のメッセージを書き換え（reword）
-git rebase -i HEAD~2  # 1行目=古い方、2行目=新しい方
+# 子Issueを作成（yahsan2/gh-sub-issue）
+gh sub-issue create <parent-number> -t "Define envelope JSON Schema" -b "詳細..." -l "type:docs,area:api"
 
-# 変更をまとめて確認
-git --no-pager log --decorate --graph --oneline -n 20
+# PR を親Issueに紐付け（テンプレ利用推奨）
+gh pr create -t "docs(api): envelope v1 (draft)" -b "Closes #<parent>\n- 内容..." -B main -H docs/events-envelope-v1
 ```
 
+保護/品質
+
+- 可能ならCIで「PR本文にIssue参照必須」をチェック（別途ワークフロー参照）。
+- スクワッシュ・マージを基本（履歴を簡潔に）。

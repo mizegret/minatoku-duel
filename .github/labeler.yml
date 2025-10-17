@@ -1,0 +1,16 @@
+type:docs:
+  - changed-files:
+      - any-glob-to-any-file: ['docs/**', 'AGENTS.md', '.github/**']
+area:ci:
+  - changed-files:
+      - any-glob-to-any-file: ['.github/workflows/**']
+area:net:
+  - changed-files:
+      - any-glob-to-any-file: ['functions/**']
+area:ui:
+  - changed-files:
+      - any-glob-to-any-file: ['src/**', 'public/**']
+
+automerge:
+  - changed-files:
+      - any-glob-to-any-file: ['docs/**', '.github/**']

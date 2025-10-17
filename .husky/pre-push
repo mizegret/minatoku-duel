@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+
+echo "[pre-push] Lint/Format/Test/Docs checks..."
+npm run -s lint || exit 1
+npm run -s format:check || exit 1
+npm test || exit 1
+npm run -s lint:md || exit 1
+npm run -s lint:md:links || exit 1
+
+# Mermaid の厳密チェックはCIで必須。ローカルではエラー時のみ通知。
+npm run -s lint:mermaid || echo "[pre-push] Mermaid 構文検証はCIで実施（ローカルは任意）"
+
+# シークレットスキャン（軽量）
+npx --no-install secretlint "**/*" -f @secretlint/formatter-stylish || exit 1
+
+# アセット健全性（サイズ/有無）
+npm run -s lint:assets || exit 1

@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+
+npx --no-install lint-staged --config .lintstagedrc.json
+
+# 粒度チェック（大きすぎるコミットを防止）
+"$(git rev-parse --show-toplevel)/scripts/check-granularity.sh" || exit 1
+
+# インタラクティブ自己レビュー（yes で続行）
+"$(git rev-parse --show-toplevel)/scripts/self-review.sh" || exit 1

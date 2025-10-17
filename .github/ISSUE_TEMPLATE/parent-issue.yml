@@ -1,0 +1,28 @@
+name: Parent Issue (Epic/Task)
+description: Create a parent issue to group sub-issues
+title: '[Epic] <title>'
+labels: ['type:feature']
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Background and goals
+      placeholder: Why and what
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      placeholder: Bullet list of DONE conditions
+    validations:
+      required: true
+  - type: textarea
+    id: breakdown
+    attributes:
+      label: Breakdown / Sub-issues
+      description: List expected child issues
+      placeholder: '- [ ] #<child> ...'
+    validations:
+      required: false
