@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import Ajv from 'ajv';
+import Ajv2020 from 'ajv/dist/2020';
 
 const schema = JSON.parse(
   readFileSync(join(process.cwd(), 'schemas/envelope.schema.json'), 'utf8')
 );
-const ajv = new Ajv({ strict: false, allErrors: true });
+const ajv = new Ajv2020({ strict: false, allErrors: true });
 const validate = ajv.compile(schema);
 
 describe('Event Envelope schema', () => {
