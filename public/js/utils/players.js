@@ -18,3 +18,16 @@ export function getMembers(state, getClientId) {
   }
   return uniq;
 }
+
+// Normalize players array into byId + order (Phase 1: additive only)
+export function normalizePlayers(players = []) {
+  const byId = {};
+  const order = [];
+  for (const p of Array.isArray(players) ? players : []) {
+    const id = p?.clientId;
+    if (!id || byId[id]) continue;
+    byId[id] = p;
+    order.push(id);
+  }
+  return { byId, order };
+}

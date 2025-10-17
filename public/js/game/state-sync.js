@@ -2,69 +2,28 @@
 // Phase 1: behavior-invariant extraction from app.js
 
 import { TOTAL_TURNS } from '../constants.js';
-import { state, setState } from '../state.js';
-import { computeDisplayRound, formatLastAction, formatDeltaParts } from '../utils/turn.js';
+import { state, dispatch } from '../state.js';
+import { formatLastAction, formatDeltaParts } from '../utils/turn.js';
 import { getEndgameTexts } from '../utils/outcome.js';
 import { lockActions, unlockActions, logAction, shouldLog } from '../ui/actions.js';
 import { buildTurnKey, buildStartKey, buildActionKey, buildEndKey } from '../utils/log.js';
+import { selectDisplayRound, selectDeckCountsFrom, selectMeOppFrom } from '../state/selectors.js';
 
 export function applyStateSnapshot(snapshot, { UI, getClientId, setNotice }) {
   try {
-    const phase = snapshot?.phase ?? 'in-round';
-    const round = Number.isFinite(snapshot?.round) ? snapshot.round : state.turn;
-    const turnOwner = snapshot?.turnOwner ?? null;
-    const players = Array.isArray(snapshot?.players) ? snapshot.players : [];
-
+    dispatch({ type: 'STATE_APPLIED', snapshot, getClientId });
     const myId = getClientId?.();
-    const me = players.find((p) => p?.clientId === myId) ?? players[0] ?? null;
-    const opp = players.find((p) => p?.clientId && p.clientId !== myId) ?? players[1] ?? null;
-
-    // ターン・フェーズ反映（表示仕様）
-    const myTurn = !!(turnOwner && myId && turnOwner === myId);
-    const roundHalf = Number.isFinite(snapshot?.roundHalf) ? snapshot.roundHalf : 0;
-    const displayRound = computeDisplayRound({ phase, round, myTurn, roundHalf });
-    setState({ turn: displayRound });
-    UI.updateTurnIndicator(state.turn, TOTAL_TURNS);
-    setState({ isMyTurn: !!myTurn });
-
-    // 山札枚数
-    const selfDeck = Number.isFinite(me?.deckCount) ? me.deckCount : 0;
-    const oppDeck = Number.isFinite(opp?.deckCount) ? opp.deckCount : 0;
+    const displayRound = selectDisplayRound({ snapshot, state, myId });
+    UI.updateTurnIndicator(displayRound, TOTAL_TURNS);
+    const { selfDeck, oppDeck } = selectDeckCountsFrom(state, snapshot, myId);
     UI.updateDeckCounts(selfDeck, oppDeck);
-
-    // スコアは自分優先
-    const myScores = me?.scores ?? { charm: 0, oji: 0, total: undefined };
-    setState({
-      scores: {
-        charm: Number.isFinite(myScores.charm) ? myScores.charm : 0,
-        oji: Number.isFinite(myScores.oji) ? myScores.oji : 0,
-        total: Number.isFinite(myScores.total) ? myScores.total : undefined,
-      },
-    });
     UI.updateScores(state.scores);
-
-    // 盤面・手札
-    if (me) {
-      setState({ self: {
-        hand: Array.isArray(me.hand) ? me.hand : [],
-        field: me.field && Array.isArray(me.field?.humans)
-          ? { humans: me.field.humans }
-          : { humans: [] },
-      }});
-    }
-    if (opp) {
-      setState({ opponent: {
-        hand: Array.isArray(opp.hand) ? opp.hand : [],
-        field: opp.field && Array.isArray(opp.field?.humans)
-          ? { humans: opp.field.humans }
-          : { humans: [] },
-      }});
-    }
     UI.renderGame(state);
 
     // 通知とアクション制御
     if (phase === 'ended' || phase === 'game-over' || round > TOTAL_TURNS) {
       lockActions(UI);
+      const { me, opp } = selectMeOppFrom(state, snapshot, myId);
       const { notice, log } = getEndgameTexts({ result: snapshot?.result, me, opp, myId });
       setNotice(notice);
       if (log) logAction('state', log);

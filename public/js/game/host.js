@@ -2,6 +2,7 @@ import { TOTAL_TURNS, MAX_DECORATIONS_PER_HUMAN, HAND_SIZE, ACTIONS, SCORE_RULES
 import { buildPlayers } from '../utils/players.js';
 import { buildDeck, drawCard, popFirstByIdOrType } from '../utils/deck.js';
 import { buildCardIndex, scoreField } from '../utils/score.js';
+import { hostAdvanceTurn, hostRecomputeScores } from '../state/reducer.js';
 import { applyAddSelfEffects } from '../utils/skills.js';
 
 // Step3: Host-side game authority logic
@@ -224,22 +225,12 @@ export function handleMoveMessage(message, ctx) {
 
   // advance half/round and switch turn owner (2 players)
   const members2 = members; // keep reference stable for readability
-  const opponent2 = opponent;
-  if (half === 0) {
-    game.half = 1;
-    game.turnOwner = opponent2;
-    game.roundStarter = actorId;
-  } else {
-    if (round >= TOTAL_TURNS) {
-      phase = 'ended';
-      round = TOTAL_TURNS;
-    } else {
-      round += 1;
-    }
-    game.half = 0;
-    game.turnOwner = opponent2;
-    game.roundStarter = opponent2;
-  }
+  const adv = hostAdvanceTurn({ game, actorId, members: members2, totalTurns: TOTAL_TURNS });
+  game.half = adv.half;
+  game.turnOwner = adv.turnOwner;
+  game.roundStarter = adv.roundStarter;
+  round = adv.round;
+  phase = adv.phase;
 
   game.round = round;
   let turnStartInfo = null;
@@ -267,17 +258,7 @@ export function handleMoveMessage(message, ctx) {
   }
 
   // SWITCH: recompute scores from field + accumulated action deltas (source of truth)
-  try {
-    const byId = game._cardsById || buildCardIndex(state.cardsByType);
-    for (const pid of members2) {
-      const fieldP = game.fieldById?.[pid] ?? { humans: [] };
-      const f = scoreField(fieldP, byId);
-      const d = game._actionDeltasById?.[pid] ?? { charm: 0, oji: 0 };
-      const fin = { charm: (f.charm || 0) + (d.charm || 0), oji: (f.oji || 0) + (d.oji || 0) };
-      fin.total = fin.charm + fin.oji;
-      game.scoresById[pid] = fin;
-    }
-  } catch {}
+  try { game.scoresById = hostRecomputeScores({ game, cardsByType: state.cardsByType, members: members2 }); } catch {}
 
   const players = buildPlayers(game, members2);
   // Prepare endgame result when phase ended

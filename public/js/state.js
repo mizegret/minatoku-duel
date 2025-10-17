@@ -30,6 +30,17 @@ const watchers = new Map(); // key -> Set<fn>
 let pendingKeys = new Set();
 let scheduled = false;
 
+// Integrate a minimal store for future reducer/dispatch path
+import { createStore } from './state/store.js';
+import { rootReducer } from './state/root-reducer.js';
+const store = createStore(state, rootReducer);
+// Bridge store subscription to per-key watchers batching
+store.subscribe((changedKeys) => {
+  if (!Array.isArray(changedKeys) || !changedKeys.length) return;
+  changedKeys.forEach((k) => pendingKeys.add(k));
+  scheduleNotify();
+});
+
 export function subscribe(key, fn) {
   if (!watchers.has(key)) watchers.set(key, new Set());
   watchers.get(key).add(fn);
@@ -61,18 +72,12 @@ function scheduleNotify() {
 
 export function setState(patch = {}) {
   if (!patch || typeof patch !== 'object') return state;
-  const changed = [];
-  for (const [k, v] of Object.entries(patch)) {
-    if (state[k] !== v) {
-      state[k] = v;
-      changed.push(k);
-    }
-  }
-  if (changed.length) {
-    changed.forEach((k) => pendingKeys.add(k));
-    scheduleNotify();
-  }
+  store.dispatch({ type: 'PATCH', patch });
   return state;
+}
+
+export function dispatch(action) {
+  return store.dispatch(action);
 }
 
 export function addMember(clientId) {
