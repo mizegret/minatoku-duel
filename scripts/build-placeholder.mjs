@@ -6,8 +6,12 @@ const out = 'dist';
 if (!existsSync(out)) mkdirSync(out, { recursive: true });
 
 // Copy static assets if present
-if (existsSync('public')) {
-  cpSync('public', out, { recursive: true });
+if (existsSync('public')) cpSync('public', out, { recursive: true });
+// copy docs images for preview
+if (existsSync('docs/ui/images')) {
+  const target = join(out, 'docs/ui/images');
+  mkdirSync(target, { recursive: true });
+  cpSync('docs/ui/images', target, { recursive: true });
 }
 
 const html = `<!doctype html>
