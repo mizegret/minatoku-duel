@@ -1,0 +1,69 @@
+name: Guardrails
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review, labeled, unlabeled]
+
+jobs:
+  issue-link:
+    name: Require PR linked issue
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR body contains issue reference
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.pull_request?.body || '';
+            const hasLink = /(Closes|Fixes|Refs)\s+#\d+/i.test(body);
+            if (!hasLink) {
+              core.setFailed('PR body must reference an issue with "Closes #<id>" or "Refs #<id>".');
+            }
+
+  commitlint:
+    name: Conventional Commits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: wagoid/commitlint-github-action@v6
+        with:
+          configFile: commitlint.config.cjs
+
+  phase-guard:
+    name: Phase 1 change gate
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Disallow non-doc changes unless labeled (allow infra/config)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const labels = (pr.labels || []).map(l => l.name);
+            const allowed = labels.includes('phase:switch') || labels.includes('allow:code-change');
+            const {owner, repo} = context.repo;
+            const files = await github.paginate(github.rest.pulls.listFiles, { owner, repo, pull_number: pr.number, per_page: 100 });
+            const changed = files.map(f => f.filename);
+            const infra = [
+              'AGENTS.md',
+              'commitlint.config.cjs',
+              'eslint.config.js',
+              '.editorconfig',
+              '.prettierrc', '.prettierrc.json', '.prettierrc.cjs',
+              '.lintstagedrc', '.lintstagedrc.cjs',
+              'package.json', 'package-lock.json', 'pnpm-lock.yaml', 'yarn.lock',
+              'vitest.config.ts', 'playwright.config.ts',
+              '.markdownlint.jsonc', '.remarkrc.mjs'
+            ];
+            const isInfra = (p) => infra.includes(p) || p.startsWith('.husky/') || p.startsWith('.github/') || p.startsWith('e2e/') || p.startsWith('tests/') || p.startsWith('scripts/');
+            const isDocPath = (p) => p.startsWith('docs/') || isInfra(p) || p === '.gitattributes';
+            const violations = changed.filter(p => !isDocPath(p));
+            if (violations.length && !allowed) {
+              core.setFailed(`Phase 1: non-doc changes detected without label (phase:switch or allow:code-change):\n${violations.join('\n')}`);
+            }
