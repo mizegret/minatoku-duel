@@ -148,7 +148,7 @@ async function main() {
         }
       }
     }
-  } catch (e) {
+  } catch (_e) {
     // gh が未設定でも doctor を継続
   }
   if (failCount > 0 && strict) process.exit(1);
