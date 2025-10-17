@@ -4,7 +4,7 @@ import { promisify } from 'node:util';
 
 const exec = promisify(execFile);
 
-function parseRepo(url){
+function parseRepo(url) {
   const m = url.match(/github.com[:/](.+?)\.git$/);
   if (!m) throw new Error('Cannot determine repo from remote.origin.url');
   return m[1];
@@ -24,8 +24,8 @@ const main = async () => {
         'eslint',
         'markdownlint',
         'check-size',
-        'Require PR linked issue'
-      ]
+        'Require PR linked issue',
+      ],
     },
     enforce_admins: true,
     required_conversation_resolution: true,
@@ -33,13 +33,19 @@ const main = async () => {
     allow_deletions: false,
     allow_force_pushes: false,
     block_creations: false,
-    restrictions: null
+    restrictions: null,
   };
 
   const input = JSON.stringify(payload);
-  await exec('gh', ['api', '-X', 'PUT', `repos/${ownerRepo}/branches/${branch}/protection`, '--input', '-'], { input });
+  await exec(
+    'gh',
+    ['api', '-X', 'PUT', `repos/${ownerRepo}/branches/${branch}/protection`, '--input', '-'],
+    { input }
+  );
   console.log(`Branch protection updated for ${ownerRepo}@${branch}`);
 };
 
-main().catch((e) => { console.error(e); process.exit(1); });
-
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
