@@ -44,31 +44,4 @@ jobs:
               }
             }
 
-            // 3) Check executable bits for shell scripts and husky hooks
-            const cp = require('child_process');
-            const fs = require('fs');
-            const paths = cp.execSync("git ls-files -z").toString('utf8').split('\u0000').filter(Boolean);
-            const candidates = paths.filter(p => p.startsWith('.husky/') || (p.startsWith('scripts/') && p.endsWith('.sh')));
-            const missing = [];
-            for (const p of candidates) {
-              try {
-                const m = fs.statSync(p).mode;
-                if ((m & 0o111) === 0) missing.push(p);
-              } catch {}
-            }
-            if (missing.length) {
-              const cmd = 'git update-index --chmod=+x ' + missing.join(' ') + " && git commit -m \"chore(permissions): mark scripts executable\" && git push";
-              const msg = [
-                '実行権限(+x)が不足しているファイルがあります。',
-                '',
-                '対象:',
-                missing.map(m => `- ${m}`).join('\n'),
-                '',
-                '修正例:',
-                '```sh',
-                cmd,
-                '```'
-              ].join('\n');
-              await github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body: msg });
-            }
             return { size, total };

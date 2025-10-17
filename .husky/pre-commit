@@ -1,5 +1,8 @@
 #!/usr/bin/env sh
 
+# Ensure exec bits on staged hooks/scripts
+node scripts/fix-exec.mjs --staged || true
+
 npx --no-install lint-staged --config .lintstagedrc.json
 
 # 粒度チェック（大きすぎるコミットを防止）
