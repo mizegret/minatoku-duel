@@ -19,6 +19,26 @@ jobs:
               core.setFailed('PR body must reference an issue with "Closes #<id>" or "Refs #<id>".');
             }
 
+  forbid-closing-epic:
+    name: Forbid closing Epic from PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR does not close an Epic
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.pull_request?.body || '';
+            const matchAll = [...body.matchAll(/(?:Closes|Fixes)\s+#(\d+)/gi)];
+            if (matchAll.length === 0) return;
+            const ids = matchAll.map(m => Number(m[1])).filter(Boolean);
+            const epicPattern = /^\s*\[Epic\]/i;
+            for (const id of ids) {
+              const { data: issue } = await github.rest.issues.get({ ...context.repo, issue_number: id });
+              if (epicPattern.test(issue.title)) {
+                core.setFailed(`親Issue(EPIC) を Closes しようとしています: #${id} — タスクは子Issueでクローズしてください。`);
+              }
+            }
+
   commitlint:
     name: Conventional Commits
     runs-on: ubuntu-latest
