@@ -29,13 +29,13 @@ function hasShebang(path) {
 function ensureExec(path) {
   try {
     chmodSync(path, 0o755);
-  } catch (e) {
+  } catch (_e) {
     // ignore
   }
   try {
     sh('git', ['update-index', '--chmod=+x', path]);
     return true;
-  } catch {
+  } catch (_e) {
     return false;
   }
 }

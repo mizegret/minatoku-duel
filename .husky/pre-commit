@@ -3,6 +3,9 @@
 # Ensure exec bits on staged hooks/scripts
 node scripts/fix-exec.mjs --staged || true
 
+# Security: block obvious secrets before any commit
+node scripts/guard-secrets.mjs || exit 1
+
 npx --no-install lint-staged --config .lintstagedrc.json
 
 # 粒度チェック（大きすぎるコミットを防止）

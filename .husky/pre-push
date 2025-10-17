@@ -1,6 +1,9 @@
 #!/usr/bin/env sh
 
-echo "[pre-push] Lint/Format/Test/Docs checks..."
+echo "[pre-push] Guard PR size/issue & Lint/Format/Test/Docs..."
+
+# Early PR guard (large diff / missing issue in branch name)
+node scripts/guard-pr.mjs || exit 1
 npm run -s lint || exit 1
 npm run -s format:check || exit 1
 npm test || exit 1
