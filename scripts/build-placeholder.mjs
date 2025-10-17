@@ -1,13 +1,5 @@
 #!/usr/bin/env node
-import {
-  mkdirSync,
-  writeFileSync,
-  existsSync,
-  readdirSync,
-  statSync,
-  cpSync,
-  unlinkSync,
-} from 'node:fs';
+import { mkdirSync, writeFileSync, existsSync, cpSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 
 const out = 'dist';
