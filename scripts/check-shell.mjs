@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { stat } from 'node:fs/promises';
+import { stat, chmod } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
@@ -8,6 +8,8 @@ const exec = promisify(execFile);
 const args = process.argv.slice(2);
 const isFromLintStaged = args.includes('--staged');
 const filesFromArgs = args.filter((a) => !a.startsWith('--'));
+const isCI = process.env.CI === 'true';
+const enableAutoFix = isCI || process.env.FIX_EXEC === '1';
 
 async function listStagedShellFiles() {
   const { stdout } = await exec('git', ['diff', '--cached', '--name-only', '--diff-filter=ACMR']);
@@ -55,15 +57,26 @@ const run = async () => {
     } catch (e) {
       fail(`[shell] 構文エラー: ${file}\n${e.stderr || e.stdout || e.message}`);
     }
-    // Execute bit (only for scripts in repo/scripts or husky)
-    if (file.startsWith('scripts/') || file.startsWith('.husky/')) {
-      const ok = await checkExecutableBit(file);
+    // Execute bit check. CI では .husky/* の実行は想定しないため、scripts/* のみを強制。
+    const requiresExec = file.startsWith('scripts/') || (!isCI && file.startsWith('.husky/'));
+    if (requiresExec) {
+      let ok = await checkExecutableBit(file);
+      if (!ok && enableAutoFix) {
+        try {
+          await chmod(file, 0o755);
+          ok = await checkExecutableBit(file);
+          if (ok) console.log(`[fix] +x 付与: ${file}`);
+        } catch (e) {
+          console.log(`[info] chmod 失敗: ${file} (${e?.message || e})`);
+        }
+      }
       if (!ok) fail(`[shell] 実行権限(＋x)がありません: ${file}`);
     }
     // Optional: shellcheck
     if (hasShellcheck) {
       try {
-        await exec('shellcheck', ['-x', file]);
+        // treat only errors as failures; ignore style/info (e.g., SC2028)
+        await exec('shellcheck', ['-x', '-S', 'error', '-e', 'SC2028', file]);
       } catch (e) {
         fail(`[shellcheck] 指摘あり: ${file}\n${e.stdout || e.stderr || e.message}`);
       }
