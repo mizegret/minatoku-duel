@@ -16,7 +16,11 @@ export default [
     },
     rules: {
       'no-console': 'off',
-      'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      // _プレフィックスの引数/変数/catchは未使用許容（意図を明示）
+      'no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
       'no-implicit-globals': 'error',
       eqeqeq: ['error', 'smart'],
     },

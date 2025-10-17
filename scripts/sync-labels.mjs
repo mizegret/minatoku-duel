@@ -10,7 +10,7 @@ async function hasLabel(name) {
     const { stdout } = await exec('gh', ['label', 'list', '--json', 'name']);
     const list = JSON.parse(stdout);
     return list.some((l) => l.name.toLowerCase() === name.toLowerCase());
-  } catch (e) {
+  } catch (_e) {
     return false;
   }
 }
