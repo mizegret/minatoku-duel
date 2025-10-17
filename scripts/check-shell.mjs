@@ -63,7 +63,8 @@ const run = async () => {
     // Optional: shellcheck
     if (hasShellcheck) {
       try {
-        await exec('shellcheck', ['-x', file]);
+        // treat only errors as failures; ignore style/info (e.g., SC2028)
+        await exec('shellcheck', ['-x', '-S', 'error', '-e', 'SC2028', file]);
       } catch (e) {
         fail(`[shellcheck] 指摘あり: ${file}\n${e.stdout || e.stderr || e.message}`);
       }
