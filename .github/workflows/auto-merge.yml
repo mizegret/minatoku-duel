@@ -14,11 +14,4 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           merge-method: squash
-      - name: 'CLI fallback: enable auto-merge on this PR'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          PR: ${{ github.event.pull_request.number }}
-        run: |
-          echo "Enabling auto-merge via gh for PR #$PR on $REPO"
-          gh pr merge -R "$REPO" --squash --auto "$PR"
+      # Fallback via gh CLI is intentionally removed to avoid accidental invocation

@@ -35,6 +35,10 @@ jobs:
           cache: 'npm'
       - name: Install deps
         run: npm ci || npm i --no-audit --no-fund
+      - name: Normalize script permissions
+        run: |
+          chmod +x .husky/* 2>/dev/null || true
+          chmod +x scripts/*.sh 2>/dev/null || true
       - name: ESLint
         run: npm run -s lint
       - name: Prettier (check)
@@ -44,6 +48,8 @@ jobs:
       - name: Remark (links)
         run: npm run -s lint:md:links
       - name: Shell (syntax & optional shellcheck)
+        env:
+          FIX_EXEC: '1'
         run: |
           sudo apt-get update && sudo apt-get install -y shellcheck
           node scripts/check-shell.mjs $(git ls-files '*.sh' '.husky/*' | tr '\n' ' ')
