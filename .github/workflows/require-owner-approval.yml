@@ -1,23 +1,22 @@
-name: Require Owner Approval
+name: Owner Approval (optional)
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-  pull_request_review:
-    types: [submitted, edited, dismissed]
+    types: [labeled, unlabeled, opened, synchronize, reopened, ready_for_review]
 
 jobs:
-  require-owner:
+  require-owner-when-labeled:
+    if: contains(join(github.event.pull_request.labels.*.name, ','), 'requires-owner')
     runs-on: ubuntu-latest
     steps:
-      - name: Ensure approval by @mizegret
+      - name: Ensure approval by @mizegret when labeled
         uses: actions/github-script@v7
         with:
           script: |
             const owner = 'mizegret';
-            const pr = context.payload.pull_request || (await github.rest.pulls.get({ ...context.repo, pull_number: context.payload.pull_request?.number || context.issue.number })).data;
+            const pr = context.payload.pull_request;
             const { data: reviews } = await github.rest.pulls.listReviews({ ...context.repo, pull_number: pr.number, per_page: 100 });
             const approved = reviews.some(r => r.state === 'APPROVED' && r.user?.login === owner);
             if (!approved) {
-              core.setFailed(`このPRは @${owner} の承認が必要です。`);
+              core.setFailed(`ラベル 'requires-owner' が付与されています。@${owner} の承認が必要です。`);
             }

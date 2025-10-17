@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
 
 echo "[pre-push] Lint/Format/Test/Docs checks..."
 npm run -s lint || exit 1
