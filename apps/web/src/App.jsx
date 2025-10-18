@@ -1,3 +1,4 @@
+import Scene from './Scene.jsx';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 function rid() {
