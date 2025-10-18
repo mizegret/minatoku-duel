@@ -23,9 +23,10 @@ jobs:
             const node_id = data.node_id;
             const method = 'SQUASH';
             try {
+              // NOTE: 'method' is a reserved option key for @octokit/graphql; avoid using it as a var name
               await github.graphql(
-                `mutation($id:ID!,$method:PullRequestMergeMethod!){ enablePullRequestAutoMerge(input:{pullRequestId:$id, mergeMethod:$method}){ clientMutationId } }`,
-                { id: node_id, method }
+                `mutation($id:ID!,$m:PullRequestMergeMethod!){ enablePullRequestAutoMerge(input:{pullRequestId:$id, mergeMethod:$m}){ clientMutationId } }`,
+                { id: node_id, m: method }
               );
               await github.rest.issues.createComment({ ...context.repo, issue_number: pr.number, body: `Auto-merge enabled (method: ${method}).` });
             } catch (e) {
