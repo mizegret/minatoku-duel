@@ -1,0 +1,27 @@
+name: Filename ASCII Check
+on:
+  pull_request:
+    types: [opened, synchronize, edited, ready_for_review]
+permissions:
+  contents: read
+jobs:
+  ascii:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure .github/ISSUE_TEMPLATE filenames are ASCII-only
+        run: |
+          set -e
+          dir=.github/ISSUE_TEMPLATE
+          if [ ! -d "$dir" ]; then exit 0; fi
+          bad=""
+          for f in "$dir"/*; do
+            bn=$(basename "$f")
+            ascii=$(printf "%s" "$bn" | LC_ALL=C tr -cd '\11\12\15\40-\176')
+            if [ "$bn" != "$ascii" ]; then bad="$bad\n$bn"; fi
+          done
+          if [ -n "$bad" ]; then
+            echo "Non-ASCII filenames detected in $dir:" >&2
+            echo -e "$bad" >&2
+            exit 1
+          fi
