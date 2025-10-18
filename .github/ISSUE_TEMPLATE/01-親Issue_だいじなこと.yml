@@ -1,0 +1,32 @@
+name: 親Issue（だいじなこと）
+description: 子Issueをまとめる親チケット
+title: '[親] ここにタイトル'
+labels: ['type:feature']
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: ゴール（なにができたらOK？）
+      placeholder: 例）UIスタブでjoin/start/move/stateが手元で試せる
+    validations:
+      required: true
+  - type: textarea
+    id: not
+    attributes:
+      label: やらないこと（今回の外）
+      placeholder: 例）本番通信はしない / デザインは仮
+  - type: textarea
+    id: ac
+    attributes:
+      label: 受け入れ条件（チェック式がおすすめ）
+      placeholder: |-
+        - [ ] 手順どおりに3分で試せる
+        - [ ] ログに秘密情報は出ない
+    validations:
+      required: true
+  - type: textarea
+    id: children
+    attributes:
+      label: 子Issue
+      placeholder: |-
+        - [ ] #<番号> タイトル

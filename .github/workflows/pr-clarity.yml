@@ -1,0 +1,51 @@
+name: PR Clarity Check
+on:
+  pull_request:
+    types: [opened, edited, synchronize, ready_for_review]
+permissions:
+  pull-requests: read
+jobs:
+  validate-body:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR body for required sections
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const title = pr.title || '';
+            const body = (pr.body || '').trim();
+            const labels = (pr.labels || []).map(l => l.name);
+            const need = [
+              'これは「なに」を「どうした」PR',
+              'なんでやるの',
+              'どう変わる',
+              'ためしかた',
+              'リスク',
+              'チェック（送る前に',
+            ];
+            const missing = need.filter(k => !body.includes(k));
+            // For docs-only PRs, allow a lighter template
+            const isDocs = labels.includes('type:docs');
+            if (isDocs) {
+              // still require ためしかた and チェック
+              const docsNeed = ['ためしかた', 'チェック（送る前に'];
+              const miss = docsNeed.filter(k => !body.includes(k));
+              if (miss.length) {
+                core.setFailed(`PR 本文に次の見出しが足りません（docs用の最小セット）: ${miss.join(', ')}`);
+              }
+              return;
+            }
+            if (missing.length) {
+              core.setFailed(`PR 本文に次の見出しが足りません: ${missing.join(', ')}`);
+            }
+            // Require at least 3 list steps under ためしかた
+            const stepsMatch = body.match(/ためしかた[\s\S]*?(?:\n|\r\n)([\s\S]*?)(?:\n\n|$)/);
+            if (stepsMatch) {
+              const lines = stepsMatch[1].split(/\n/).filter(l => /^\s*\d+\./.test(l));
+              if (lines.length < 3) {
+                core.setFailed('ためしかた の手順は3つ以上にしてください（読む人が迷わないように）。');
+              }
+            } else {
+              core.setFailed('ためしかた セクションが見つかりません。');
+            }
