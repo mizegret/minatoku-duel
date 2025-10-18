@@ -22,15 +22,25 @@ jobs:
             if (normalized !== body) {
               await github.rest.pulls.update({ ...context.repo, pull_number: pr.number, body: normalized });
             }
-      - name: Check PR body contains issue reference
+      - name: Check or inject issue reference
         uses: actions/github-script@v7
         with:
           script: |
-            const body = context.payload.pull_request?.body || '';
+            const pr = context.payload.pull_request;
+            const body = pr?.body || '';
             const hasLink = /(Closes|Fixes|Refs)\s+#\d+/i.test(body);
-            if (!hasLink) {
-              core.setFailed('PR body must reference an issue with "Closes #<id>" or "Refs #<id>".');
+            if (hasLink) return;
+            // Try to derive issue number from branch name
+            const branch = pr.head.ref || '';
+            const m = branch.match(/(?:^|\/)\s*(\d{1,6})-?/);
+            if (m && m[1]) {
+              const id = m[1];
+              const updated = `Refs #${id}\n\n${body}`.trim();
+              await github.rest.pulls.update({ ...context.repo, pull_number: pr.number, body: updated });
+              core.notice(`PR body updated with Refs #${id}`);
+              return;
             }
+            core.setFailed('PR body must reference an issue with "Closes #<id>" or "Refs #<id>".');
 
   forbid-closing-epic:
     name: Forbid closing Epic from PR
