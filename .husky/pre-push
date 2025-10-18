@@ -1,6 +1,9 @@
 #!/usr/bin/env sh
 
-echo "[pre-push] Guard PR size/issue & Lint/Format/Test/Docs..."
+echo "[pre-push] Rebase guard + Guard PR size/issue & Lint/Format/Test/Docs..."
+
+# Rebase guard: ensure branch is up-to-date with base before push
+"$(git rev-parse --show-toplevel)/scripts/hooks/pre-push-rebase-guard.sh" || exit 1
 
 # Early PR guard (large diff / missing issue in branch name)
 node scripts/guard-pr.mjs || exit 1
