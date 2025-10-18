@@ -72,20 +72,37 @@ jobs:
     name: E2E (conditional)
     runs-on: ubuntu-latest
     needs: [changes, node-quality]
-    if: ${{ needs.changes.outputs.app == 'true' || needs.changes.outputs.docs_mermaid == 'true' || github.ref == 'refs/heads/main' }}
     steps:
+      - name: Decide whether to run E2E
+        id: decide
+        run: |
+          RUN="false"
+          if [[ "${{ needs.changes.outputs.app }}" == "true" || "${{ needs.changes.outputs.docs_mermaid }}" == "true" || "${{ github.ref }}" == "refs/heads/main" ]]; then
+            RUN="true"
+          fi
+          echo "run=${RUN}" >> "$GITHUB_OUTPUT"
+          echo "E2E run? ${RUN}"
       - uses: actions/checkout@v4
+        if: steps.decide.outputs.run == 'true'
         with:
           lfs: true
       - uses: actions/setup-node@v4
+        if: steps.decide.outputs.run == 'true'
         with:
           node-version: '22'
           cache: 'npm'
       - name: Install deps
+        if: steps.decide.outputs.run == 'true'
         run: npm ci || npm i --no-audit --no-fund
       - name: Install Playwright browsers
+        if: steps.decide.outputs.run == 'true'
         run: npx playwright install --with-deps
       - name: Mermaid syntax check
+        if: steps.decide.outputs.run == 'true'
         run: npm run -s lint:mermaid
       - name: Run e2e (placeholder)
+        if: steps.decide.outputs.run == 'true'
         run: npm run -s test:ui
+      - name: Skip E2E (not needed)
+        if: steps.decide.outputs.run != 'true'
+        run: echo "E2E is not required for this change; marking job success."
