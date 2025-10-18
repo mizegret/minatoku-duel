@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
+import Avatar from './scene/Avatar.jsx';
 
 function Grid() {
   return <gridHelper args={[20, 20, '#aaa', '#ddd']} position={[0, 0, 0]} />;
@@ -33,6 +34,7 @@ export default function Scene({ pos }) {
       <Suspense fallback={null}>
         <Grid />
         <Player position={p} />
+        <Avatar />
       </Suspense>
     </Canvas>
   );
