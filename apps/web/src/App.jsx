@@ -1,5 +1,7 @@
 import Scene from './Scene.jsx';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { subscribe } from './lib/bus/local.js';
+import { send } from './state/events.js';
 
 function rid() {
   return 'r-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
