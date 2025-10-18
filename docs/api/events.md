@@ -76,3 +76,9 @@ Ably 連携ベストプラクティス（準備）
 
 - 本ドキュメントは“準備”であり、実装の検証/強制は行わない。
 - 既存挙動に一致しない強制やログ変更は行わない。
+
+関連ドキュメント
+
+- `docs/api/events.examples.md`（例集・非拘束）
+- `docs/api/payload-fields.md`（予約フィールド）
+- `docs/api/channel-usage.md`（チャンネル運用）
