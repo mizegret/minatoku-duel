@@ -1,6 +1,11 @@
 name: Labels Sync
 on:
   workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - '.github/labels.json'
+      - 'scripts/sync-labels.mjs'
   schedule:
     - cron: '23 3 * * 1'
 permissions:
