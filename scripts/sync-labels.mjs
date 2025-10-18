@@ -4,7 +4,6 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 const exec = promisify(execFile);
-
 const normColor = (c) => (c || '').replace(/^#/, '').toLowerCase();
 
 async function listRemoteLabels() {
@@ -35,13 +34,9 @@ async function createLabel({ name, color, description }) {
 async function editLabel(current, desired) {
   const args = ['label', 'edit', current.name];
   const wantsColor = normColor(desired.color);
-  if (wantsColor && wantsColor !== normColor(current.color)) {
-    args.push('--color', wantsColor);
-  }
+  if (wantsColor && wantsColor !== normColor(current.color)) args.push('--color', wantsColor);
   const wantsDesc = desired.description ?? '';
-  if ((current.description || '') !== wantsDesc) {
-    args.push('--description', wantsDesc);
-  }
+  if ((current.description || '') !== wantsDesc) args.push('--description', wantsDesc);
   if (args.length > 3) {
     try {
       await exec('gh', args);
@@ -54,13 +49,9 @@ async function editLabel(current, desired) {
 const main = async () => {
   const desired = JSON.parse(await readFile('.github/labels.json', 'utf8'));
   const remote = await listRemoteLabels().catch(() => []);
-
-  const byName = (arr) => Object.fromEntries(arr.map((l) => [l.name.toLowerCase(), l]));
-
-  const remoteMap = byName(remote);
+  const remoteMap = Object.fromEntries(remote.map((l) => [l.name.toLowerCase(), l]));
   let created = 0;
   let updated = 0;
-
   for (const item of desired) {
     const key = item.name.toLowerCase();
     const existing = remoteMap[key];
@@ -75,13 +66,11 @@ const main = async () => {
     }
     try {
       await editLabel(existing, item);
-      // editLabel only calls gh when something differs;増分は目視ログに統一
       updated += 1;
     } catch (e) {
       console.warn('labels:loop-edit failed:', item?.name, e?.message || e);
     }
   }
-
   console.log(JSON.stringify({ ok: true, action: 'labels-sync', created, updated }, null, 2));
 };
 
