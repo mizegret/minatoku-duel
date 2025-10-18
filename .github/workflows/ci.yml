@@ -38,7 +38,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
@@ -107,7 +107,7 @@ jobs:
         if: steps.decide.outputs.run == 'true'
         with:
           lfs: true
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         if: steps.decide.outputs.run == 'true'
         with:
           node-version: '22'
