@@ -23,5 +23,10 @@
   { "name": "size/S", "color": "bfdadc", "description": "Diff size S" },
   { "name": "size/M", "color": "c2e0c6", "description": "Diff size M" },
   { "name": "size/L", "color": "fef2c0", "description": "Diff size L" },
-  { "name": "size/XL", "color": "f9d0c4", "description": "Diff size XL" }
+  { "name": "size/XL", "color": "f9d0c4", "description": "Diff size XL" },
+  {
+    "name": "rules:allow-non-jp-title",
+    "color": "5319e7",
+    "description": "Allow non-Japanese PR title (rare)"
+  }
 ]
