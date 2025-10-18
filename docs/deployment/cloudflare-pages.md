@@ -37,6 +37,41 @@ Functions（例）
 - `functions/api/ably-token.ts` — Ably 用のトークンリクエストを発行（本番のみ）。
 - `functions/api/health.ts` — ヘルスチェック 200 を返す。
 
+## ABLY_API_KEY を設定する（かんたん手順）
+
+ダッシュボードから（GUI）
+
+1. Cloudflare Dashboard → Pages → 対象プロジェクト
+2. Settings → Environment Variables
+3. 「Add Variable」
+   - Name: `ABLY_API_KEY`
+   - Value: AblyのAPIキー（例: `xxxx:yyyy...`）
+   - Environment: Production（必要に応じて Preview にも）
+4. Save
+
+CLIから（wrangler）
+
+```bash
+wrangler pages secret put ABLY_API_KEY
+# プロンプトにキーを貼り付けて Enter
+```
+
+確認（/api/ably-token にアクセス）
+
+```bash
+curl -s https://<あなたのPagesドメイン>/api/ably-token | jq
+```
+
+期待される返事（Phase準備のダミー返事）
+
+- Secrets未設定: `{ ok: false, stub: true, message: 'Missing ABLY_API_KEY ...' }`
+- Secrets設定済: `{ ok: true, stub: true, message: 'Token issuing is not implemented ...' }`
+
+注意
+
+- いまは“ダミー返事（stub）”のみ。実運用の発行ロジックは後で置き換えます。
+- Secretsはフロントに露出しません（Pages Functionsのサーバ側のみ）。
+
 セキュリティ
 
 - CORS: 既知の Origin のみ許可。
