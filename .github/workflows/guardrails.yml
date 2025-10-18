@@ -13,7 +13,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Normalize PR body newlines
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const pr = context.payload.pull_request;
@@ -23,7 +23,7 @@ jobs:
               await github.rest.pulls.update({ ...context.repo, pull_number: pr.number, body: normalized });
             }
       - name: Check or inject issue reference
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const pr = context.payload.pull_request;
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check PR does not close an Epic
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const body = context.payload.pull_request?.body || '';
@@ -85,7 +85,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Disallow non-doc changes unless labeled (allow infra/config)
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const pr = context.payload.pull_request;
