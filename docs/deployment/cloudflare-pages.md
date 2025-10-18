@@ -37,6 +37,11 @@ Functions（例）
 - `functions/api/ably-token.ts` — Ably 用のトークンリクエストを発行（本番のみ）。
 - `functions/api/health.ts` — ヘルスチェック 200 を返す。
 
+関連
+
+- `docs/deployment/token-service.md`
+- `docs/deployment/env-variables.md`
+
 ## ABLY_API_KEY を設定する（かんたん手順）
 
 ダッシュボードから（GUI）
