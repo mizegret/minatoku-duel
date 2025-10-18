@@ -1,0 +1,40 @@
+name: 子Issue（こまかい作業）
+description: 親Issueにぶら下げる作業チケット
+title: '<種別>: ここにタイトル'
+labels: ['type:task']
+body:
+  - type: input
+    id: parent
+    attributes:
+      label: 親Issue（#番号）
+      placeholder: '#<数字>'
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 種別
+      options:
+        - docs
+        - implement
+        - test
+        - refactor
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: すること（1行でOK）
+      placeholder: 例）/api/health を作る
+    validations:
+      required: true
+  - type: textarea
+    id: how
+    attributes:
+      label: ためしかた（3ステップ以上）
+      placeholder: |-
+        1. `npm run build`
+        2. ブラウザで /api/health を開く
+        3. { ok: true } が見える
+    validations:
+      required: true
