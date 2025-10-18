@@ -17,7 +17,7 @@ jobs:
       app: ${{ steps.filter.outputs.app }}
       docs_mermaid: ${{ steps.filter.outputs.docs_mermaid }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - uses: dorny/paths-filter@v3
@@ -37,7 +37,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -103,7 +103,7 @@ jobs:
           fi
           echo "run=${RUN}" >> "$GITHUB_OUTPUT"
           echo "E2E run? ${RUN}"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: steps.decide.outputs.run == 'true'
         with:
           lfs: true
