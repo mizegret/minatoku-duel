@@ -1,0 +1,10 @@
+{
+  "name": "@minatoku/functions",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Phase 1 placeholder for Pages Functions / AWS Lambda",
+  "scripts": {
+    "dev": "echo 'SWITCH以降にFunctions実装'"
+  }
+}
