@@ -7,6 +7,10 @@
   "engines": {
     "node": ">=22"
   },
+  "workspaces": [
+    "apps/*",
+    "functions"
+  ],
   "scripts": {
     "prepare": "husky || true && node scripts/fix-exec.mjs || true",
     "build": "node scripts/build-placeholder.mjs",
