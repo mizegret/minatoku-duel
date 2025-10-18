@@ -60,4 +60,3 @@ export default function Avatar({ url = '/assets/vrm/sample.vrm' }) {
   }
   return <group ref={group} />;
 }
-
