@@ -58,7 +58,14 @@ export default function App() {
   }, []);
 
   function envelope(event, payload) {
-    return { version: '1.0', event, ts: now(), clientId: clientId || 'anon', requestId: rid(), payload };
+    return {
+      version: '1.0',
+      event,
+      ts: now(),
+      clientId: clientId || 'anon',
+      requestId: rid(),
+      payload,
+    };
   }
   function pushEvent(ev) {
     const line = JSON.stringify(ev);
@@ -82,7 +89,11 @@ export default function App() {
     next.set(id, { seat, alive: true });
     setPlayers(next);
     pushEvent(
-      envelope('join', { displayName: id, seat, client: { ua: navigator.userAgent, lang: navigator.language } })
+      envelope('join', {
+        displayName: id,
+        seat,
+        client: { ua: navigator.userAgent, lang: navigator.language },
+      })
     );
   }
   function doStart() {
@@ -130,7 +141,9 @@ export default function App() {
     pushEvent(
       envelope('state', {
         frame,
-        players: Object.fromEntries(Array.from(players.entries()).map(([id, p]) => [id, { seat: p.seat, alive: true }])),
+        players: Object.fromEntries(
+          Array.from(players.entries()).map(([id, p]) => [id, { seat: p.seat, alive: true }])
+        ),
       })
     );
   }
@@ -154,46 +167,116 @@ export default function App() {
 
   return (
     <div>
-      <header style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid #ddd' }}>
+      <header
+        style={{
+          display: 'flex',
+          gap: 8,
+          alignItems: 'center',
+          padding: '10px 12px',
+          borderBottom: '1px solid #ddd',
+        }}
+      >
         <h1 style={{ fontSize: 16, margin: 0 }}>Minatoku Duel — Web (SWITCH)</h1>
         <label className="small">
-          Room <input value={roomId} onChange={(e) => setRoom(e.target.value)} style={{ height: 28 }} />
+          Room{' '}
+          <input value={roomId} onChange={(e) => setRoom(e.target.value)} style={{ height: 28 }} />
         </label>
         <label className="small">
-          Client <input value={clientId} onChange={(e) => setClient(e.target.value)} style={{ height: 28 }} />
+          Client{' '}
+          <input
+            value={clientId}
+            onChange={(e) => setClient(e.target.value)}
+            style={{ height: 28 }}
+          />
         </label>
-        <button onClick={doJoin} style={{ height: 30 }}>join</button>
-        <button onClick={doStart} style={{ height: 30 }}>start</button>
-        <span style={{ marginLeft: 'auto', color: '#666', fontSize: 12 }}>events: join • start • move • state</span>
+        <button onClick={doJoin} style={{ height: 30 }}>
+          join
+        </button>
+        <button onClick={doStart} style={{ height: 30 }}>
+          start
+        </button>
+        <span style={{ marginLeft: 'auto', color: '#666', fontSize: 12 }}>
+          events: join • start • move • state
+        </span>
       </header>
-      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr 340px', gap: 12, padding: 12 }}>
+      <div
+        style={{ display: 'grid', gridTemplateColumns: '300px 1fr 340px', gap: 12, padding: 12 }}
+      >
         <aside style={{ border: '1px solid #ddd', borderRadius: 10, padding: 10 }}>
           <h3 style={{ marginTop: 0 }}>Room</h3>
-          <div className="small">channel: <code>{chan}</code></div>
+          <div className="small">
+            channel: <code>{chan}</code>
+          </div>
           <h3>Players</h3>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>{renderPlayersList()}</ul>
         </aside>
         <main style={{ border: '1px solid #ddd', borderRadius: 10, padding: 8 }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingBottom: 8, borderBottom: '1px dashed #ddd' }}>
-            <button onClick={() => { pos.current = { x: 80, y: 80 }; const c = canvasRef.current; if (c) { const ctx = c.getContext('2d'); if (ctx) ctx.clearRect(0,0,c.width,c.height); } }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              alignItems: 'center',
+              paddingBottom: 8,
+              borderBottom: '1px dashed #ddd',
+            }}
+          >
+            <button
+              onClick={() => {
+                pos.current = { x: 80, y: 80 };
+                const c = canvasRef.current;
+                if (c) {
+                  const ctx = c.getContext('2d');
+                  if (ctx) ctx.clearRect(0, 0, c.width, c.height);
+                }
+              }}
+            >
               center
             </button>
             <span style={{ color: '#666', fontSize: 12 }}>frame: {frame}</span>
           </div>
           <div style={{ padding: 8 }}>
-            <canvas ref={canvasRef} style={{ width: '100%', height: 420, background: '#fff', border: '1px solid #ddd', borderRadius: 8 }} />
+            <canvas
+              ref={canvasRef}
+              style={{
+                width: '100%',
+                height: 420,
+                background: '#fff',
+                border: '1px solid #ddd',
+                borderRadius: 8,
+              }}
+            />
           </div>
         </main>
         <aside style={{ border: '1px solid #ddd', borderRadius: 10, padding: 8 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button onClick={() => { const blob = new Blob(['[\n' + logsRef.current.join(',\n') + '\n]'], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'events-'+Date.now()+'.json'; a.click(); URL.revokeObjectURL(a.href); }}>export logs</button>
-            <button onClick={() => { logsRef.current = []; }}>clear logs</button>
+            <button
+              onClick={() => {
+                const blob = new Blob(['[\n' + logsRef.current.join(',\n') + '\n]'], {
+                  type: 'application/json',
+                });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'events-' + Date.now() + '.json';
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              export logs
+            </button>
+            <button
+              onClick={() => {
+                logsRef.current = [];
+              }}
+            >
+              clear logs
+            </button>
           </div>
           <div style={{ fontSize: 12, color: '#666', paddingTop: 6 }}>latest:</div>
-          <pre style={{ fontSize: 12, color: '#666', maxHeight: 280, overflow: 'auto' }}>{latestRef.current || '(no events)'}</pre>
+          <pre style={{ fontSize: 12, color: '#666', maxHeight: 280, overflow: 'auto' }}>
+            {latestRef.current || '(no events)'}
+          </pre>
         </aside>
       </div>
     </div>
   );
 }
-
