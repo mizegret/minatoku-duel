@@ -26,7 +26,10 @@
     "lint:assets": "node scripts/check-assets.mjs",
     "doctor": "node scripts/repo-doctor.mjs",
     "checklist:pre": "node scripts/task-checklist.mjs pre",
-    "checklist:post": "node scripts/task-checklist.mjs post"
+    "checklist:post": "node scripts/task-checklist.mjs post",
+    "front:dev": "npm run -w apps/web dev",
+    "back:dev": "npx --yes wrangler pages dev . --local --port 8788",
+    "dev:both": "concurrently -k -n web,func -c green,cyan \"npm run front:dev\" \"npm run back:dev\""
   },
   "devDependencies": {
     "@commitlint/cli": "^19.5.0",
@@ -55,6 +58,7 @@
     "react-dom": "^18.3.1",
     "three": "^0.169.0",
     "@react-three/fiber": "^8.16.2",
-    "ajv": "^8.17.1"
+    "ajv": "^8.17.1",
+    "concurrently": "^9.1.0"
   }
 }
