@@ -30,8 +30,9 @@ jobs:
             else if (total <= thresholds.M) size = 'M';
             else if (total <= thresholds.L) size = 'L';
 
-            const labels = pr.labels?.map(l=>l.name) || [];
-            const hasAllowLarge = labels.includes('allow:large-pr');
+            // Fetch live labels; pr.labels can be stale on webhook payload
+            const { data: issueLabels } = await github.rest.issues.listLabelsOnIssue({ ...context.repo, issue_number: pr.number });
+            const hasAllowLarge = issueLabels.some(l => l.name === 'allow:large-pr');
             const isOwnerPR = (pr.user?.login || '') === owner;
 
             // 2) Suggest or auto-add allow:large-pr for L/XL
