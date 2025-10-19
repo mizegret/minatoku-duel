@@ -41,6 +41,14 @@ export default [
     },
   },
   {
-    ignores: ['node_modules/**', 'dist/**', 'coverage/**', 'public/env.local.json'],
+    ignores: [
+      'node_modules/**',
+      'dist/**',
+      'coverage/**',
+      'public/env.local.json',
+      // Phase 1: 型付け移行中のため web の TS/TSX は lint 対象外にする
+      'apps/web/src/**/*.ts',
+      'apps/web/src/**/*.tsx',
+    ],
   },
 ];
