@@ -29,7 +29,9 @@
     "checklist:post": "node scripts/task-checklist.mjs post",
     "front:dev": "npm run -w apps/web dev",
     "back:dev": "npx --yes wrangler pages dev . --local --port 8788",
-    "dev:both": "concurrently -k -n web,func -c green,cyan \"npm run front:dev\" \"npm run back:dev\""
+    "dev:both": "concurrently -k -n web,func -c green,cyan \"npm run front:dev\" \"npm run back:dev\"",
+    "pr:template": "node scripts/pr-template.mjs",
+    "pr:check": "node scripts/pr-body-verify.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.5.0",
