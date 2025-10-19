@@ -1,5 +1,6 @@
 import Scene from './Scene';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { httpTokenService } from './lib/token/http';
 
 function rid() {
   return 'r-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
@@ -13,6 +14,8 @@ export default function App() {
   const [clientId, setClient] = useState('');
   const [players, setPlayers] = useState(new Map<string, { seat?: number; alive?: boolean }>());
   const [frame, setFrame] = useState(0);
+  const [tokenStatus, setTokenStatus] = useState<'idle' | 'ok' | 'fail'>('idle');
+  const [tokenMsg, setTokenMsg] = useState('');
   const logsRef = useRef<string[]>([]);
   const [logSeq, setLogSeq] = useState(0); // ログ更新のためのレンダー用トリガ
   const latestRef = useRef('');
@@ -21,6 +24,20 @@ export default function App() {
   const lastMove = useRef(0);
 
   const chan = useMemo(() => `room:${roomId}`, [roomId]);
+
+  // Phase1: /api/ably-token に軽く当ててステータスを表示（接続はしない）
+  useEffect(() => {
+    const svc = httpTokenService();
+    svc
+      .getAblyToken(clientId || 'anon')
+      .then((r) => {
+        setTokenStatus(r.ok ? 'ok' : 'fail');
+        if (r.message) setTokenMsg(r.message);
+      })
+      .catch(() => setTokenStatus('fail'));
+    // note: 再取得はしない（表示のみ）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -202,8 +219,11 @@ export default function App() {
         <button onClick={doStart} style={{ height: 30 }}>
           start
         </button>
-        <span style={{ marginLeft: 'auto', color: '#666', fontSize: 12 }}>
+        <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>
           events: join • start • move • state
+        </span>
+        <span style={{ marginLeft: 12, fontSize: 12 }} title={tokenMsg}>
+          token: {tokenStatus === 'idle' ? '...' : tokenStatus}
         </span>
       </header>
       <div
