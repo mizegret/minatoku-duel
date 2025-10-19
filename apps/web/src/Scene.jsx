@@ -23,11 +23,14 @@ export default function Scene({ pos }) {
       camera={{ position: [0, 6, 6], fov: 60 }}
       style={{
         width: '100%',
-        height: 420,
+        height: '100%',
         background: '#fff',
         border: '1px solid #ddd',
         borderRadius: 8,
+        boxSizing: 'border-box',
+        display: 'block',
       }}
+      frameloop="demand"
     >
       <ambientLight intensity={0.6} />
       <directionalLight position={[5, 10, 5]} intensity={0.6} />
