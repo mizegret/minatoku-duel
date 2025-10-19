@@ -3,3 +3,13 @@ node_modules
 dist/
 /.env*
 /env*.json
+
+# ignore local tmp
+.wrangler/
+/test-results/
+
+
+# local temp
+.wrangler/
+test-results/
+

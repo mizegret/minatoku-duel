@@ -49,6 +49,9 @@ export default [
       // Phase 1: 型付け移行中のため web の TS/TSX は lint 対象外にする
       'apps/web/src/**/*.ts',
       'apps/web/src/**/*.tsx',
+      // ローカル実行時に生成される一時物は除外
+      '.wrangler/**',
+      'test-results/**',
     ],
   },
 ];
