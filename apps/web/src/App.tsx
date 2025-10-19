@@ -175,12 +175,12 @@ export default function App() {
       style={{ height: '100vh', overflow: 'hidden', display: 'grid', gridTemplateRows: 'auto 1fr' }}
     >
       <header
+        className="app-header"
         style={{
           display: 'flex',
           gap: 8,
           alignItems: 'center',
           padding: '10px 12px',
-          borderBottom: '1px solid #ddd',
         }}
       >
         <h1 style={{ fontSize: 16, margin: 0 }}>Minatoku Duel — Web (SWITCH)</h1>
@@ -216,7 +216,7 @@ export default function App() {
           minHeight: 0,
         }}
       >
-        <aside style={{ border: '1px solid #ddd', borderRadius: 10, padding: 10 }}>
+        <aside className="panel" style={{ padding: 10 }}>
           <h3 style={{ marginTop: 0 }}>Room</h3>
           <div className="small">
             channel: <code>{chan}</code>
@@ -225,9 +225,8 @@ export default function App() {
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>{renderPlayersList()}</ul>
         </aside>
         <main
+          className="panel"
           style={{
-            border: '1px solid #ddd',
-            borderRadius: 10,
             padding: 8,
             height: '100%',
             minHeight: 0,
@@ -276,7 +275,7 @@ export default function App() {
             <Scene pos={pos.current} />
           </div>
         </main>
-        <aside style={{ border: '1px solid #ddd', borderRadius: 10, padding: 8 }}>
+        <aside className="panel" style={{ padding: 8 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button
               onClick={() => {
