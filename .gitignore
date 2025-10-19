@@ -3,6 +3,7 @@ node_modules
 dist/
 /.env*
 /env*.json
+.dev.vars
 
 # ignore local tmp
 .wrangler/
@@ -12,4 +13,3 @@ dist/
 # local temp
 .wrangler/
 test-results/
-
