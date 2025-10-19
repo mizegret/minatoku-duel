@@ -27,6 +27,9 @@ jobs:
             app:
               - 'src/**'
               - 'public/index.html'
+              - 'apps/**'
+              - 'apps/web/**'
+              - 'apps/web/index.html'
             docs_mermaid:
               - 'docs/**/*.md'
               - 'AGENTS.md'
