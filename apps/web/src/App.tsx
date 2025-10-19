@@ -1,4 +1,4 @@
-import Scene from './Scene.jsx';
+import Scene from './Scene';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 function rid() {

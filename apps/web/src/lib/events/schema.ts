@@ -12,4 +12,13 @@ export const envelopeSchema = {
     payload: { type: 'object', additionalProperties: true },
   },
   additionalProperties: true,
+} as const;
+
+export type Envelope = {
+  version: '1.0';
+  event: 'join' | 'start' | 'move' | 'state';
+  ts: number;
+  clientId: string;
+  requestId: string;
+  payload: unknown;
 };
