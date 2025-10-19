@@ -7,6 +7,6 @@ test('layout is 100vh and panels visible', async ({ page }) => {
     clientH: document.documentElement.clientHeight,
   }));
   expect(scrollH).toBeLessThanOrEqual(clientH + 2);
-  await expect(page.getByText('Room')).toBeVisible();
-  await expect(page.getByText('Players')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Room' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Players' })).toBeVisible();
 });
