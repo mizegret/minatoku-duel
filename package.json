@@ -28,10 +28,12 @@
     "checklist:pre": "node scripts/task-checklist.mjs pre",
     "checklist:post": "node scripts/task-checklist.mjs post",
     "front:dev": "npm run -w apps/web dev",
-    "back:dev": "npx --yes wrangler pages dev . --local --port 8788",
+    "back:dev": "scripts/dev-pages.sh",
     "dev:both": "concurrently -k -n web,func -c green,cyan \"npm run front:dev\" \"npm run back:dev\"",
     "pr:template": "node scripts/pr-template.mjs",
-    "pr:check": "node scripts/pr-body-verify.mjs"
+    "pr:check": "node scripts/pr-body-verify.mjs",
+    "pr:open": "node scripts/pr-open.mjs",
+    "pr:sync": "node scripts/pr-sync.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.5.0",
