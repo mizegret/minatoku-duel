@@ -43,10 +43,10 @@ UI/ダッシュボードはこの軽いサマリだけで主要指標を描画�
 
 ```mermaid
 flowchart LR
-  A[生イベント Envelope\njoin/start/move/state] --> B[集計ジョブ\n(窓:1m/5m)]
-  B --> C[Event Counters JSON\n(本スキーマ)]
+  A["生イベント Envelope<br/>join/start/move/state"] --> B["集計ジョブ<br/>(窓:1m/5m)"]
+  B --> C["Event Counters JSON<br/>(本スキーマ)"]
   C --> D[(保管: WA-API or S3)]
-  D --> E[Dashboard/UI]
+  D --> E["Dashboard/UI"]
 ```
 
 タイムラインの直感（1分窓のイメージ）
