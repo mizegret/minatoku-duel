@@ -28,14 +28,24 @@ export default function App() {
   // Phase1: /api/ably-token に軽く当ててステータスを表示（接続はしない）
   useEffect(() => {
     const svc = httpTokenService();
-    svc
-      .getAblyToken(clientId || 'anon')
-      .then((r) => {
-        setTokenStatus(r.ok ? 'ok' : 'fail');
+    let cancelled = false;
+    async function attempt(n: number) {
+      const r = await svc.getAblyToken(clientId || 'anon');
+      if (cancelled) return;
+      if (r.ok) {
+        setTokenStatus('ok');
         if (r.message) setTokenMsg(r.message);
-      })
-      .catch(() => setTokenStatus('fail'));
-    // note: 再取得はしない（表示のみ）
+      } else if (n < 4) {
+        setTimeout(() => attempt(n + 1), 500 * Math.pow(2, n));
+      } else {
+        setTokenStatus('fail');
+        if (r.message) setTokenMsg(r.message);
+      }
+    }
+    attempt(0);
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -188,17 +198,10 @@ export default function App() {
   }, [players, frame]);
 
   return (
-    <div
-      style={{ height: '100vh', overflow: 'hidden', display: 'grid', gridTemplateRows: 'auto 1fr' }}
-    >
+    <div className="layout">
       <header
         className="app-header"
-        style={{
-          display: 'flex',
-          gap: 8,
-          alignItems: 'center',
-          padding: '10px 12px',
-        }}
+        style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '10px 12px' }}
       >
         <h1 style={{ fontSize: 16, margin: 0 }}>Minatoku Duel — Web (SWITCH)</h1>
         <label className="small">
@@ -226,17 +229,8 @@ export default function App() {
           token: {tokenStatus === 'idle' ? '...' : tokenStatus}
         </span>
       </header>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '300px 1fr 340px',
-          gap: 12,
-          padding: 12,
-          height: '100%',
-          minHeight: 0,
-        }}
-      >
-        <aside className="panel" style={{ padding: 10 }}>
+      <div className="container">
+        <aside className="panel panel-pad-lg">
           <h3 style={{ marginTop: 0 }}>Room</h3>
           <div className="small">
             channel: <code>{chan}</code>
@@ -244,17 +238,7 @@ export default function App() {
           <h3>Players</h3>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>{renderPlayersList()}</ul>
         </aside>
-        <main
-          className="panel"
-          style={{
-            padding: 8,
-            height: '100%',
-            minHeight: 0,
-            display: 'grid',
-            gridTemplateRows: 'auto 2fr 1fr',
-            rowGap: 8,
-          }}
-        >
+        <main className="panel main-panel">
           <div
             style={{
               display: 'flex',
@@ -278,7 +262,10 @@ export default function App() {
             </button>
             <span style={{ color: '#666', fontSize: 12 }}>frame: {frame}</span>
           </div>
-          <div style={{ padding: 8, height: '100%', minHeight: 0, boxSizing: 'border-box' }}>
+          <div
+            className="panel-pad"
+            style={{ height: '100%', minHeight: 0, boxSizing: 'border-box' }}
+          >
             <canvas
               ref={canvasRef}
               style={{
@@ -291,11 +278,11 @@ export default function App() {
             />
           </div>
           {/* R3F シーン（VRMローダの挙動確認用） */}
-          <div style={{ padding: 8, height: '100%', minHeight: 0 }}>
+          <div className="panel-pad" style={{ height: '100%', minHeight: 0 }}>
             <Scene pos={pos.current} />
           </div>
         </main>
-        <aside className="panel" style={{ padding: 8 }}>
+        <aside className="panel panel-pad">
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button
               onClick={() => {

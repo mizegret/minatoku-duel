@@ -1,0 +1,6 @@
+name = "minatoku-duel-local"
+compatibility_date = "2025-10-19"
+
+# この設定は Pages Functions のローカル開発にも適用されます（wrangler pages dev）。
+# 本番/Preview の設定は Cloudflare 側のプロジェクト設定が優先されます。
+
