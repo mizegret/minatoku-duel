@@ -1,5 +1,8 @@
 {
-  "**/*.{js,ts,tsx,cjs,mjs}": ["eslint --max-warnings 0 --fix", "prettier --write"],
+  "**/*.{js,ts,tsx,cjs,mjs}": [
+    "eslint --max-warnings 0 --fix --no-warn-ignored",
+    "prettier --write"
+  ],
   "**/*.md": ["markdownlint-cli2", "remark -q", "prettier --write"],
   "**/*.{mdx,css,scss,html,json,yml,yaml}": ["prettier --write"]
 }
