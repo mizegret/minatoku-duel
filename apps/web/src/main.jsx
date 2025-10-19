@@ -1,6 +1,3 @@
-import React from 'react';
-import { createRoot } from 'react-dom/client';
-import App from './App.jsx';
+// Temporary forwarder to support stale module graphs in dev
+import './main.tsx';
 
-const root = createRoot(document.getElementById('root'));
-root.render(<App />);
