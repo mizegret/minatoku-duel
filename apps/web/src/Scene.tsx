@@ -1,12 +1,12 @@
 import React, { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import Avatar from './scene/Avatar.jsx';
+import Avatar from './scene/Avatar';
 
 function Grid() {
   return <gridHelper args={[20, 20, '#aaa', '#ddd']} position={[0, 0, 0]} />;
 }
 
-function Player({ position = [0, 0, 0] }) {
+function Player({ position = [0, 0, 0] as [number, number, number] }) {
   return (
     <mesh position={position}>
       <sphereGeometry args={[0.3, 16, 16]} />
@@ -15,9 +15,9 @@ function Player({ position = [0, 0, 0] }) {
   );
 }
 
-export default function Scene({ pos }) {
+export default function Scene({ pos }: { pos: { x: number; y: number } }) {
   const scale = 0.05;
-  const p = [pos.x * scale, pos.y * scale, 0];
+  const p: [number, number, number] = [pos.x * scale, pos.y * scale, 0];
   return (
     <Canvas
       camera={{ position: [0, 6, 6], fov: 60 }}

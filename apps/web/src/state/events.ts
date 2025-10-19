@@ -1,9 +1,16 @@
-import { publish } from '../lib/bus/local.js';
-import { validateEnvelope } from '../lib/events/validate.js';
+import { publish } from '../lib/bus/local';
+import { validateEnvelope } from '../lib/events/validate';
+import type { Envelope } from '../lib/events/schema';
+
 function rid() {
   return 'r-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
 }
-export function envelope(clientId, event, payload) {
+
+export function envelope(
+  clientId: string | undefined,
+  event: Envelope['event'],
+  payload: unknown
+): Envelope {
   return {
     version: '1.0',
     event,
@@ -13,7 +20,13 @@ export function envelope(clientId, event, payload) {
     payload,
   };
 }
-export function send(clientId, event, payload, onInvalid) {
+
+export function send(
+  clientId: string | undefined,
+  event: Envelope['event'],
+  payload: unknown,
+  onInvalid?: (errors: unknown) => void
+): boolean {
   const msg = envelope(clientId, event, payload);
   const { ok, errors } = validateEnvelope(msg);
   if (!ok) {
