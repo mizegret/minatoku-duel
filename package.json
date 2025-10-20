@@ -61,7 +61,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "three": "^0.169.0",
-    "@react-three/fiber": "^8.16.2",
+    "@react-three/fiber": "^9.4.0",
     "ajv": "^8.17.1",
     "concurrently": "^9.1.0"
   }
