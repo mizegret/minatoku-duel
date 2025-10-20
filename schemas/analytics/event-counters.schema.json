@@ -1,0 +1,34 @@
+{
+  "$id": "https://spec.minatoku.duel/analytics/event-counters.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Event counters (windowed) v0.1",
+  "type": "object",
+  "required": ["version", "windowStart", "windowEnd", "counts", "uniqueClients"],
+  "properties": {
+    "version": { "type": "string", "enum": ["0.1"] },
+    "windowStart": { "type": "string", "format": "date-time" },
+    "windowEnd": { "type": "string", "format": "date-time" },
+    "counts": {
+      "type": "object",
+      "required": ["join", "start", "move", "state"],
+      "properties": {
+        "join": { "type": "integer", "minimum": 0 },
+        "start": { "type": "integer", "minimum": 0 },
+        "move": { "type": "integer", "minimum": 0 },
+        "state": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "uniqueClients": { "type": "integer", "minimum": 0 },
+    "rates": {
+      "type": "object",
+      "properties": {
+        "move_per_sec_p50": { "type": "number", "minimum": 0 },
+        "move_per_sec_p95": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "meta": { "type": "object", "additionalProperties": true }
+  },
+  "additionalProperties": true
+}
