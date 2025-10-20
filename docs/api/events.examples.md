@@ -103,3 +103,57 @@ state — 軽量ステートのエコー（ハートビート兼用）
 
 - 上記は“例”であり、受信側は未知フィールドを許容/保持すること。
 - 厳格な検証は SWITCH 以降に行う。Phase 1 は後方互換を最優先とする。
+
+## 最小例（v0.1 / Phase 1）
+
+- join
+
+```json
+{
+  "version": "1.0",
+  "event": "join",
+  "ts": 1730000000000,
+  "clientId": "u123",
+  "requestId": "r-001",
+  "payload": { "displayName": "taro" }
+}
+```
+
+- start
+
+```json
+{
+  "version": "1.0",
+  "event": "start",
+  "ts": 1730000001000,
+  "clientId": "host1",
+  "requestId": "r-010",
+  "payload": {}
+}
+```
+
+- move
+
+```json
+{
+  "version": "1.0",
+  "event": "move",
+  "ts": 1730000001200,
+  "clientId": "u123",
+  "requestId": "r-011",
+  "payload": { "dx": 1, "dy": 0 }
+}
+```
+
+- state
+
+```json
+{
+  "version": "1.0",
+  "event": "state",
+  "ts": 1730000001500,
+  "clientId": "host1",
+  "requestId": "r-012",
+  "payload": { "tick": 42 }
+}
+```
