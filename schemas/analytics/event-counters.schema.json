@@ -1,34 +1,65 @@
 {
   "$id": "https://spec.minatoku.duel/analytics/event-counters.schema.json",
+  "$comment": "時間窓で集計したイベント件数と補助統計の最小出力。ダッシュボード等の軽量読み取りを想定。",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Event counters (windowed) v0.1",
   "type": "object",
   "required": ["version", "windowStart", "windowEnd", "counts", "uniqueClients"],
   "properties": {
-    "version": { "type": "string", "enum": ["0.1"] },
-    "windowStart": { "type": "string", "format": "date-time" },
-    "windowEnd": { "type": "string", "format": "date-time" },
+    "version": {
+      "type": "string",
+      "enum": ["0.1"],
+      "$comment": "本レコードのバージョン（互換性管理）。"
+    },
+    "windowStart": {
+      "type": "string",
+      "format": "date-time",
+      "$comment": "UTC ISO8601。半開区間[start, end)のstart。"
+    },
+    "windowEnd": {
+      "type": "string",
+      "format": "date-time",
+      "$comment": "UTC ISO8601。半開区間[start, end)のend。"
+    },
     "counts": {
+      "$comment": "語彙ごとの件数。join/start/move/state 固定（Phase 1）。",
       "type": "object",
       "required": ["join", "start", "move", "state"],
       "properties": {
-        "join": { "type": "integer", "minimum": 0 },
-        "start": { "type": "integer", "minimum": 0 },
-        "move": { "type": "integer", "minimum": 0 },
-        "state": { "type": "integer", "minimum": 0 }
+        "join": { "type": "integer", "minimum": 0, "$comment": "参加イベント件数。" },
+        "start": { "type": "integer", "minimum": 0, "$comment": "開始イベント件数。" },
+        "move": { "type": "integer", "minimum": 0, "$comment": "移動イベント件数。" },
+        "state": { "type": "integer", "minimum": 0, "$comment": "状態イベント件数。" }
       },
       "additionalProperties": false
     },
-    "uniqueClients": { "type": "integer", "minimum": 0 },
+    "uniqueClients": {
+      "type": "integer",
+      "minimum": 0,
+      "$comment": "この窓で一度でも出現したclientIdのユニーク数。"
+    },
     "rates": {
+      "$comment": "任意のレート系統計。無くてもよい。",
       "type": "object",
       "properties": {
-        "move_per_sec_p50": { "type": "number", "minimum": 0 },
-        "move_per_sec_p95": { "type": "number", "minimum": 0 }
+        "move_per_sec_p50": {
+          "type": "number",
+          "minimum": 0,
+          "$comment": "クライアント毎のmove/secの中央値。"
+        },
+        "move_per_sec_p95": {
+          "type": "number",
+          "minimum": 0,
+          "$comment": "クライアント毎のmove/secの95パーセンタイル。"
+        }
       },
       "additionalProperties": true
     },
-    "meta": { "type": "object", "additionalProperties": true }
+    "meta": {
+      "type": "object",
+      "additionalProperties": true,
+      "$comment": "保存先・生成器など自由記述の付帯情報。"
+    }
   },
   "additionalProperties": true
 }
